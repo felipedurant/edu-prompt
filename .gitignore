@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# Variáveis de ambiente
+.env
+
+# Banco de dados
+data/edu_content.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Samples gerados (manter exemplos, ignorar gerados em runtime)
+# samples/*.json e samples/*.md são versionados como exemplos
+
+# Logs
+*.log

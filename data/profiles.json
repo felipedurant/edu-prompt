@@ -1,0 +1,42 @@
+[
+  {
+    "id": "ana_16_inter_visual",
+    "nome": "Ana",
+    "idade": 16,
+    "nivel": "intermediario",
+    "estilo": "visual",
+    "contexto": "Estudante do 2\u00ba ano do ensino m\u00e9dio, gosta de infogr\u00e1ficos e v\u00eddeos"
+  },
+  {
+    "id": "pedro_10_inic_cinest",
+    "nome": "Pedro",
+    "idade": 10,
+    "nivel": "iniciante",
+    "estilo": "cinestesico",
+    "contexto": "Aluno do 5\u00ba ano, aprende melhor fazendo atividades pr\u00e1ticas"
+  },
+  {
+    "id": "maria_22_avanc_leitura",
+    "nome": "Maria",
+    "idade": 22,
+    "nivel": "avancado",
+    "estilo": "leitura-escrita",
+    "contexto": "Universit\u00e1ria de Biologia, prefere textos acad\u00eamicos"
+  },
+  {
+    "id": "joao_14_inic_audit",
+    "nome": "Jo\u00e3o",
+    "idade": 14,
+    "nivel": "iniciante",
+    "estilo": "auditivo",
+    "contexto": "Aluno do 9\u00ba ano, aprende melhor com explica\u00e7\u00f5es faladas"
+  },
+  {
+    "id": "carla_35_inter_visual",
+    "nome": "Carla",
+    "idade": 35,
+    "nivel": "intermediario",
+    "estilo": "visual",
+    "contexto": "Profissional em transi\u00e7\u00e3o de carreira, aprendendo programa\u00e7\u00e3o"
+  }
+]
