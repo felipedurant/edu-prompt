@@ -102,7 +102,7 @@ def export_comparison_markdown(comparison_data: dict) -> str:
     profile = comparison_data.get("profile", {})
     results = comparison_data.get("results", {})
     cache_stats = comparison_data.get("cache_stats", {})
-    mode = "v1 vs v2" if "provider" in comparison_data else "Multi-API"
+    mode = "v1 vs v2" if "provider" in comparison_data else "Multi-Modelo"
 
     lines = [
         f"# Comparação {mode}: {topic}",
@@ -135,19 +135,19 @@ def export_comparison_markdown(comparison_data: dict) -> str:
                 lines.append(data["v2"]["content"])
                 lines.append("")
 
-        elif "providers" in data:
-            # Comparação multi-API
-            for provider, pdata in data["providers"].items():
-                plabel = pdata.get("label", provider)
-                if pdata.get("result"):
-                    source = pdata["result"].get("source", "")
-                    elapsed = pdata["result"].get("elapsed", 0)
+        elif "models" in data:
+            # Comparação multi-modelo
+            for model_key, mdata in data["models"].items():
+                plabel = mdata.get("label", model_key)
+                if mdata.get("result"):
+                    source = mdata["result"].get("source", "")
+                    elapsed = mdata["result"].get("elapsed", 0)
                     lines.append(f"### {plabel} [{source}, {elapsed}s]")
-                    lines.append(pdata["result"]["content"])
+                    lines.append(mdata["result"]["content"])
                     lines.append("")
-                elif pdata.get("error"):
+                elif mdata.get("error"):
                     lines.append(f"### {plabel} [ERRO]")
-                    lines.append(f"> {pdata['error']}")
+                    lines.append(f"> {mdata['error']}")
                     lines.append("")
 
     # Estatísticas

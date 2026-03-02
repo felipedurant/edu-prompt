@@ -1,10 +1,9 @@
-"""Adapter para DeepSeek (formato OpenAI)."""
+"""Adapter para OpenRouter (formato OpenAI)."""
 
 import logging
 
 from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationError, APIStatusError
 
-from app.config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL
 from app.adapters.base import LLMAdapter
 from app.adapters.exceptions import (
     LLMAuthError,
@@ -16,14 +15,14 @@ from app.adapters.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-class DeepSeekAdapter(LLMAdapter):
-    """Adapter para DeepSeek usando formato OpenAI."""
+class OpenRouterAdapter(LLMAdapter):
+    """Adapter para OpenRouter usando formato OpenAI."""
 
-    def __init__(self):
-        self._model_name = DEEPSEEK_MODEL
+    def __init__(self, model: str, api_key: str):
+        self._model_name = model
         self._client = OpenAI(
-            api_key=DEEPSEEK_API_KEY,
-            base_url="https://api.deepseek.com",
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
         )
 
     def generate(self, messages: list[dict], system_prompt: str = "",
@@ -38,16 +37,17 @@ class DeepSeekAdapter(LLMAdapter):
                 model=self._model_name,
                 messages=api_messages,
                 temperature=temperature,
+                max_tokens=4096,
             )
 
             content = response.choices[0].message.content
             if not content:
-                raise LLMResponseError("DeepSeek retornou resposta vazia.")
+                raise LLMResponseError("OpenRouter retornou resposta vazia.")
 
             return content
 
         except RateLimitError as e:
-            logger.error("Rate limit DeepSeek: %s", e)
+            logger.error("Rate limit OpenRouter: %s", e)
             retry_after = None
             if hasattr(e, "response") and e.response is not None:
                 retry_after_header = e.response.headers.get("retry-after")
@@ -55,22 +55,22 @@ class DeepSeekAdapter(LLMAdapter):
                     retry_after = int(retry_after_header)
             raise LLMRateLimitError(retry_after=retry_after) from e
         except AuthenticationError as e:
-            logger.error("Auth error DeepSeek: %s", e)
-            raise LLMAuthError(f"Chave DeepSeek inválida: {e}") from e
+            logger.error("Auth error OpenRouter: %s", e)
+            raise LLMAuthError(f"Chave OpenRouter inválida: {e}") from e
         except APIConnectionError as e:
-            logger.error("Conexão DeepSeek: %s", e)
-            raise LLMConnectionError(f"Falha de conexão DeepSeek: {e}") from e
+            logger.error("Conexão OpenRouter: %s", e)
+            raise LLMConnectionError(f"Falha de conexão OpenRouter: {e}") from e
         except APIStatusError as e:
-            logger.error("Erro API DeepSeek: %s", e)
-            raise LLMConnectionError(f"Erro DeepSeek: {e}") from e
+            logger.error("Erro API OpenRouter: %s", e)
+            raise LLMConnectionError(f"Erro OpenRouter: {e}") from e
         except LLMResponseError:
             raise
         except Exception as e:
-            logger.error("Erro inesperado DeepSeek: %s", e)
-            raise LLMConnectionError(f"Erro inesperado DeepSeek: {e}") from e
+            logger.error("Erro inesperado OpenRouter: %s", e)
+            raise LLMConnectionError(f"Erro inesperado OpenRouter: {e}") from e
 
     def get_model_name(self) -> str:
         return self._model_name
 
     def get_provider_name(self) -> str:
-        return "deepseek"
+        return "openrouter"

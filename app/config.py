@@ -15,13 +15,69 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # ─── APIs ────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # ─── Modelos ─────────────────────────────────────────────
 GEMINI_FLASH_MODEL = "gemini-2.5-flash"
 GEMINI_PRO_MODEL = "gemini-2.5-pro"       # exclusivo para judge
-GROQ_MODEL = "llama-3.3-70b-versatile"
-DEEPSEEK_MODEL = "deepseek-chat"
+
+# ─── Registro de modelos ──────────────────────────────
+MODEL_REGISTRY = {
+    "gemini-flash": {
+        "provider": "gemini",
+        "model_id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash (Google)",
+        "api_key_env": "GEMINI_API_KEY",
+    },
+    "llama4-scout": {
+        "provider": "groq",
+        "model_id": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "label": "Llama 4 Scout (Groq)",
+        "api_key_env": "GROQ_API_KEY",
+    },
+    "gpt-oss-120b": {
+        "provider": "groq",
+        "model_id": "openai/gpt-oss-120b",
+        "label": "GPT-OSS 120B (Groq)",
+        "api_key_env": "GROQ_API_KEY",
+    },
+    "deepseek-r1-70b": {
+        "provider": "groq",
+        "model_id": "deepseek-r1-distill-llama-70b",
+        "label": "DeepSeek R1 70B (Groq)",
+        "api_key_env": "GROQ_API_KEY",
+    },
+    "qwen3-32b": {
+        "provider": "groq",
+        "model_id": "qwen/qwen3-32b",
+        "label": "Qwen 3 32B (Groq)",
+        "api_key_env": "GROQ_API_KEY",
+    },
+    "gpt-4.1-mini": {
+        "provider": "openrouter",
+        "model_id": "openai/gpt-4.1-mini-2025-04-14",
+        "label": "GPT-4.1 Mini (OpenRouter)",
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+    "grok-4.1-fast": {
+        "provider": "openrouter",
+        "model_id": "x-ai/grok-4.1-fast",
+        "label": "Grok 4.1 Fast (OpenRouter)",
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+    "deepseek-v3-or": {
+        "provider": "openrouter",
+        "model_id": "deepseek/deepseek-v3.2",
+        "label": "DeepSeek V3.2 (OpenRouter)",
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+    "mistral-small-3.1": {
+        "provider": "openrouter",
+        "model_id": "mistralai/mistral-small-3.1-24b-instruct:free",
+        "label": "Mistral Small 3.1 (OpenRouter)",
+        "api_key_env": "OPENROUTER_API_KEY",
+    },
+}
 
 # ─── Geração ─────────────────────────────────────────────
 DEFAULT_TEMPERATURE = 0.7
@@ -31,11 +87,6 @@ DEFAULT_PROMPT_VERSION = "v2"
 TOKEN_ESTIMATE_RATIO = 4              # 1 token ≈ 4 caracteres em PT-BR
 SLIDING_WINDOW_THRESHOLD = 3000       # tokens estimados antes de ativar janela
 SLIDING_WINDOW_KEEP_MESSAGES = 8      # últimas N mensagens mantidas integrais
-CONTEXT_LIMITS = {
-    "gemini": 1_000_000,
-    "groq": 128_000,
-    "deepseek": 128_000,
-}
 
 # ─── Cache ───────────────────────────────────────────────
 CACHE_ENABLED = True

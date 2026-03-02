@@ -1,10 +1,12 @@
 """Factory e utilitários para adaptadores de LLM."""
 
-from app.config import GEMINI_API_KEY, GEMINI_PRO_MODEL, GROQ_API_KEY, DEEPSEEK_API_KEY
+import os
+
+from app.config import GEMINI_API_KEY, GEMINI_PRO_MODEL, MODEL_REGISTRY
 from app.adapters.base import LLMAdapter
 from app.adapters.gemini_adapter import GeminiAdapter
 from app.adapters.groq_adapter import GroqAdapter
-from app.adapters.deepseek_adapter import DeepSeekAdapter
+from app.adapters.openrouter_adapter import OpenRouterAdapter
 from app.adapters.exceptions import (
     LLMError,
     LLMConnectionError,
@@ -17,7 +19,7 @@ __all__ = [
     "LLMAdapter",
     "GeminiAdapter",
     "GroqAdapter",
-    "DeepSeekAdapter",
+    "OpenRouterAdapter",
     "get_adapter",
     "get_judge_adapter",
     "list_available",
@@ -29,26 +31,35 @@ __all__ = [
 ]
 
 
-def get_adapter(provider: str) -> LLMAdapter:
+def get_adapter(model_key: str) -> LLMAdapter:
     """
-    Retorna adapter configurado para o provedor.
+    Retorna adapter configurado para o modelo.
 
     Args:
-        provider: Nome do provedor ('gemini', 'groq', 'deepseek').
+        model_key: Chave do modelo no MODEL_REGISTRY.
 
     Raises:
-        ValueError: Provedor desconhecido ou sem chave configurada.
+        ValueError: Modelo desconhecido ou sem chave configurada.
     """
-    adapters = {
-        "gemini": GeminiAdapter,
-        "groq": GroqAdapter,
-        "deepseek": DeepSeekAdapter,
-    }
-    if provider not in adapters:
-        raise ValueError(f"Provedor desconhecido: {provider}")
-    if provider not in list_available():
-        raise ValueError(f"Provedor '{provider}' sem chave configurada no .env")
-    return adapters[provider]()
+    if model_key not in MODEL_REGISTRY:
+        raise ValueError(f"Modelo desconhecido: {model_key}")
+
+    entry = MODEL_REGISTRY[model_key]
+    api_key = os.getenv(entry["api_key_env"])
+    if not api_key:
+        raise ValueError(f"Modelo '{model_key}' sem chave configurada no .env ({entry['api_key_env']})")
+
+    provider = entry["provider"]
+    model_id = entry["model_id"]
+
+    if provider == "gemini":
+        return GeminiAdapter(model=model_id, api_key=api_key)
+    elif provider == "groq":
+        return GroqAdapter(model=model_id, api_key=api_key)
+    elif provider == "openrouter":
+        return OpenRouterAdapter(model=model_id, api_key=api_key)
+    else:
+        raise ValueError(f"Provider desconhecido no registry: {provider}")
 
 
 def get_judge_adapter() -> LLMAdapter:
@@ -59,12 +70,9 @@ def get_judge_adapter() -> LLMAdapter:
 
 
 def list_available() -> list[str]:
-    """Retorna apenas provedores com chave configurada no .env."""
+    """Retorna model keys cujo API key está configurada no .env."""
     available = []
-    if GEMINI_API_KEY:
-        available.append("gemini")
-    if GROQ_API_KEY:
-        available.append("groq")
-    if DEEPSEEK_API_KEY:
-        available.append("deepseek")
+    for key, entry in MODEL_REGISTRY.items():
+        if os.getenv(entry["api_key_env"]):
+            available.append(key)
     return available

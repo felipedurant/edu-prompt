@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     topic TEXT,
     system_prompt TEXT,
     mode TEXT NOT NULL DEFAULT 'conversation'
-        CHECK (mode IN ('conversation', 'compare_versions', 'compare_apis')),
+        CHECK (mode IN ('conversation', 'compare_versions', 'compare_apis', 'compare_models')),
     started_at TEXT DEFAULT (datetime('now')),
     ended_at TEXT,
     FOREIGN KEY (profile_id) REFERENCES profiles(id)
@@ -93,6 +93,7 @@ class Database:
         try:
             with self._get_conn() as conn:
                 conn.executescript(SCHEMA)
+                conn.execute("DROP TABLE IF EXISTS sessions_new")
             logger.info("Schema SQLite inicializado: %s", self.db_path)
         except sqlite3.DatabaseError as e:
             logger.error("Erro ao inicializar DB: %s. Recriando...", e)

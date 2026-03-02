@@ -13,7 +13,7 @@ from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.text import Text
 
-from app.config import LOG_LEVEL, LOG_FORMAT, VALID_LEVELS, VALID_STYLES, CONTENT_TYPES
+from app.config import LOG_LEVEL, LOG_FORMAT, VALID_LEVELS, VALID_STYLES, CONTENT_TYPES, MODEL_REGISTRY
 from app.adapters import get_adapter, list_available, LLMError
 from app.core.profiles import load_profiles, create_profile, get_profile_by_index
 from app.core.onboarding import (
@@ -26,9 +26,8 @@ from app.core.prompt_engine import PromptEngine
 from app.core.session import SessionManager, COMMANDS_HELP
 from app.core.comparison import (
     compare_versions,
-    compare_apis,
+    compare_models,
     CONTENT_TYPE_LABELS,
-    PROVIDER_LABELS,
 )
 from app.core.export import (
     export_session_json,
@@ -78,15 +77,15 @@ def get_engine() -> PromptEngine:
 # ─── Helpers de display ─────────────────────────────────
 
 def show_header():
-    """Exibe header com APIs disponíveis."""
+    """Exibe header com modelos disponíveis."""
     available = list_available()
-    api_status = []
-    for name, label in [("gemini", "Gemini"), ("groq", "Groq"), ("deepseek", "DeepSeek")]:
-        status = "\u2705" if name in available else "\u274c"
-        api_status.append(f"{label} {status}")
+    model_status = []
+    for key, entry in MODEL_REGISTRY.items():
+        status = "\u2705" if key in available else "\u274c"
+        model_status.append(f"{entry['label']} {status}")
 
     console.print(Panel(
-        f"[bold]APIs dispon\u00edveis:[/bold] {' | '.join(api_status)}",
+        f"[bold]Modelos dispon\u00edveis:[/bold]\n" + "\n".join(model_status),
         title="\U0001f393 EduPrompt Platform",
         border_style="blue",
     ))
@@ -137,26 +136,19 @@ def select_profile() -> dict | None:
             return None
 
 
-def select_api() -> str | None:
-    """Menu de seleção de API."""
+def select_model() -> str | None:
+    """Menu de seleção de modelo."""
     available = list_available()
     if not available:
-        console.print("[red]Nenhuma API configurada. Verifique seu .env[/red]")
+        console.print("[red]Nenhum modelo configurado. Verifique seu .env[/red]")
         return None
 
-    labels = {
-        "gemini": "[1] Gemini Flash",
-        "groq": "[2] Groq (Llama 70B)",
-        "deepseek": "[3] DeepSeek V3.2",
-    }
-
-    options = []
+    console.print("Selecione o modelo:")
     mapping = {}
-    for i, provider in enumerate(available):
-        options.append(labels.get(provider, f"[{i+1}] {provider}"))
-        mapping[str(i + 1)] = provider
-
-    console.print("Selecione a API: " + "  ".join(options))
+    for i, key in enumerate(available):
+        label = MODEL_REGISTRY[key]["label"]
+        console.print(f"  [{i+1}] {label}")
+        mapping[str(i + 1)] = key
 
     while True:
         choice = Prompt.ask("Escolha", default="1")
@@ -329,8 +321,8 @@ def cmd_session():
     if not profile:
         return
 
-    api = select_api()
-    if not api:
+    model_key = select_model()
+    if not model_key:
         return
 
     topic = Prompt.ask("Qual o t\u00f3pico de estudo?")
@@ -339,7 +331,7 @@ def cmd_session():
         return
 
     try:
-        adapter = get_adapter(api)
+        adapter = get_adapter(model_key)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         return
@@ -528,8 +520,8 @@ def cmd_compare_versions():
     if not profile:
         return
 
-    api = select_api()
-    if not api:
+    model_key = select_model()
+    if not model_key:
         return
 
     topic = Prompt.ask("Qual o t\u00f3pico?")
@@ -538,7 +530,7 @@ def cmd_compare_versions():
         return
 
     try:
-        adapter = get_adapter(api)
+        adapter = get_adapter(model_key)
     except ValueError as e:
         console.print(f"[red]{e}[/red]")
         return
@@ -628,11 +620,11 @@ def _display_version_comparison(data: dict):
             console.print(Columns(panels, equal=True, expand=True))
 
 
-# ─── Opção 5: Comparar APIs ─────────────────────────────
+# ─── Opção 5: Comparar Modelos ─────────────────────────
 
-def cmd_compare_apis():
-    """Modo de comparação multi-API."""
-    console.print(Panel("\U0001f4ca Compara\u00e7\u00e3o entre APIs", border_style="magenta"))
+def cmd_compare_models():
+    """Modo de comparação multi-modelo (1 modelo por provedor)."""
+    console.print(Panel("\U0001f4ca Compara\u00e7\u00e3o entre Modelos", border_style="magenta"))
 
     profile = select_profile()
     if not profile:
@@ -644,10 +636,52 @@ def cmd_compare_apis():
         return
 
     available = list_available()
+    if not available:
+        console.print("[red]Nenhum modelo configurado. Verifique seu .env[/red]")
+        return
+
+    # Agrupar modelos disponíveis por provedor
+    providers_models: dict[str, list[str]] = {}
+    for key in available:
+        provider = MODEL_REGISTRY[key]["provider"]
+        providers_models.setdefault(provider, []).append(key)
+
+    if len(providers_models) < 2:
+        console.print("[red]Configure ao menos 2 provedores para comparar modelos.[/red]")
+        return
+
+    # Selecionar 1 modelo por provedor
+    selected_keys = []
+    provider_display = {"gemini": "Google", "groq": "Groq", "openrouter": "OpenRouter"}
+
+    for provider, keys in providers_models.items():
+        display_name = provider_display.get(provider, provider)
+        console.print(f"\n--- {display_name} ---")
+
+        if len(keys) == 1:
+            label = MODEL_REGISTRY[keys[0]]["label"]
+            console.print(f"  [1] {label}")
+            selected_keys.append(keys[0])
+            console.print(f"  [dim]Selecionado automaticamente[/dim]")
+            continue
+
+        mapping = {}
+        for i, key in enumerate(keys):
+            label = MODEL_REGISTRY[key]["label"]
+            console.print(f"  [{i+1}] {label}")
+            mapping[str(i + 1)] = key
+
+        while True:
+            choice = Prompt.ask("Escolha", default="1")
+            if choice in mapping:
+                selected_keys.append(mapping[choice])
+                break
+            console.print("[red]Op\u00e7\u00e3o inv\u00e1lida.[/red]")
+
     cache = get_cache()
     cache.reset_stats()
 
-    total = len(CONTENT_TYPES) * len(available)
+    total = len(CONTENT_TYPES) * len(selected_keys)
 
     with Progress(
         SpinnerColumn(),
@@ -657,7 +691,7 @@ def cmd_compare_apis():
         console=console,
     ) as progress:
         task = progress.add_task(
-            f"\u23f3 Gerando {total} conte\u00fados (4 tipos \u00d7 {len(available)} APIs, v2)...",
+            f"\u23f3 Gerando {total} conte\u00fados (4 tipos \u00d7 {len(selected_keys)} modelos, v2)...",
             total=total,
         )
 
@@ -665,8 +699,8 @@ def cmd_compare_apis():
             progress.update(task, completed=completed, description=f"\u23f3 {desc}")
 
         try:
-            result = compare_apis(
-                profile, topic, get_engine(), cache, get_db(),
+            result = compare_models(
+                selected_keys, profile, topic, get_engine(), cache, get_db(),
                 progress_callback=on_progress,
             )
         except (LLMError, ValueError) as e:
@@ -674,7 +708,7 @@ def cmd_compare_apis():
             return
 
     # Exibir resultados
-    _display_api_comparison(result)
+    _display_model_comparison(result)
 
     stats = result["cache_stats"]
     console.print(
@@ -686,29 +720,29 @@ def cmd_compare_apis():
         _export_comparison(result)
 
 
-def _display_api_comparison(data: dict):
-    """Exibe comparação multi-API."""
+def _display_model_comparison(data: dict):
+    """Exibe comparação multi-modelo."""
     for ct, info in data["results"].items():
         console.print(f"\n{'='*60}")
         console.print(f"[bold]{info['label']}[/bold]", justify="center")
         console.print(f"{'='*60}")
 
         panels = []
-        for provider, pdata in info["providers"].items():
-            label = pdata["label"]
-            if pdata.get("result"):
-                source = pdata["result"]["source"]
-                text = pdata["result"]["content"][:1500]
-                indicator = "\u26a1 Cache" if source == "cache" else f"\U0001f310 {pdata['result'].get('elapsed', 0)}s"
+        for model_key, mdata in info["models"].items():
+            label = mdata["label"]
+            if mdata.get("result"):
+                source = mdata["result"]["source"]
+                text = mdata["result"]["content"][:1500]
+                indicator = "\u26a1 Cache" if source == "cache" else f"\U0001f310 {mdata['result'].get('elapsed', 0)}s"
                 panels.append(Panel(
                     Markdown(text),
                     title=f"{label} [{indicator}]",
                     border_style="blue",
                     width=40,
                 ))
-            elif pdata.get("error"):
+            elif mdata.get("error"):
                 panels.append(Panel(
-                    f"[red]\u26a0\ufe0f {pdata['error']}[/red]",
+                    f"[red]\u26a0\ufe0f {mdata['error']}[/red]",
                     title=label,
                     border_style="red",
                     width=40,
@@ -736,13 +770,14 @@ def cmd_history():
     table.add_column("Data")
     table.add_column("Perfil")
     table.add_column("T\u00f3pico")
-    table.add_column("API")
+    table.add_column("Modelo")
     table.add_column("Modo")
 
     mode_labels = {
         "conversation": "Conversa",
         "compare_versions": "v1 vs v2",
-        "compare_apis": "Multi-API",
+        "compare_models": "Multi-Modelo",
+        "compare_apis": "Multi-Modelo",
     }
 
     for i, s in enumerate(sessions):
@@ -864,7 +899,7 @@ def _export_comparison(data: dict):
     """Exporta resultado de comparação."""
     from datetime import datetime
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    mode = "versions" if "provider" in data else "apis"
+    mode = "versions" if "provider" in data else "models"
 
     json_content = export_comparison_json(data)
     path = save_export(json_content, f"comparison_{mode}_{ts}.json")
@@ -887,7 +922,7 @@ def main_menu():
         console.print("2. \u2795  Criar novo perfil")
         console.print("3. \U0001f4ac  Iniciar sess\u00e3o de aprendizado")
         console.print("4. \U0001f504  Comparar vers\u00f5es de prompt (v1 vs v2)")
-        console.print("5. \U0001f4ca  Comparar APIs")
+        console.print("5. \U0001f4ca  Comparar Modelos")
         console.print("6. \U0001f4dc  Ver hist\u00f3rico de sess\u00f5es")
         console.print("7. \U0001f4c1  Exportar resultados (JSON / Markdown)")
         console.print("8. \U0001f6aa  Sair")
@@ -907,7 +942,7 @@ def main_menu():
         elif choice == "4":
             cmd_compare_versions()
         elif choice == "5":
-            cmd_compare_apis()
+            cmd_compare_models()
         elif choice == "6":
             cmd_history()
         elif choice == "7":

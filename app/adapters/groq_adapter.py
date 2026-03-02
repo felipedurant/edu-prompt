@@ -4,7 +4,6 @@ import logging
 
 from openai import OpenAI, APIConnectionError, RateLimitError, AuthenticationError, APIStatusError
 
-from app.config import GROQ_API_KEY, GROQ_MODEL
 from app.adapters.base import LLMAdapter
 from app.adapters.exceptions import (
     LLMAuthError,
@@ -19,10 +18,10 @@ logger = logging.getLogger(__name__)
 class GroqAdapter(LLMAdapter):
     """Adapter para Groq usando formato OpenAI."""
 
-    def __init__(self):
-        self._model_name = GROQ_MODEL
+    def __init__(self, model: str, api_key: str):
+        self._model_name = model
         self._client = OpenAI(
-            api_key=GROQ_API_KEY,
+            api_key=api_key,
             base_url="https://api.groq.com/openai/v1",
         )
 

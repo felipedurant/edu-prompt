@@ -10,8 +10,9 @@ from app.config import (
     DEFAULT_PROMPT_VERSION,
     DEFAULT_TEMPERATURE,
     CONTENT_TYPES,
+    MODEL_REGISTRY,
 )
-from app.adapters import get_adapter, list_available, LLMError
+from app.adapters import get_adapter, LLMError
 from app.adapters.base import LLMAdapter
 from app.core.prompt_engine import PromptEngine
 from app.core.content_generator import ContentGenerator
@@ -27,13 +28,6 @@ CONTENT_TYPE_LABELS = {
     "reflection": "Perguntas de Reflexão",
     "visual": "Resumo Visual",
 }
-
-PROVIDER_LABELS = {
-    "gemini": "Gemini Flash",
-    "groq": "Groq/Llama 70B",
-    "deepseek": "DeepSeek V3.2",
-}
-
 
 def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
                      engine: PromptEngine, cache: CacheManager, db: Database,
@@ -51,6 +45,7 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
     provider = adapter.get_provider_name()
     model = adapter.get_model_name()
 
+    db.save_profile(profile)
     db.create_session(
         session_id=session_id,
         profile_id=profile["id"],
@@ -137,52 +132,57 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
     }
 
 
-def compare_apis(profile: dict, topic: str, engine: PromptEngine,
-                 cache: CacheManager, db: Database,
-                 progress_callback=None) -> dict:
+def compare_models(model_keys: list[str], profile: dict, topic: str,
+                   engine: PromptEngine, cache: CacheManager, db: Database,
+                   progress_callback=None) -> dict:
     """
-    Compara todas as APIs disponíveis para todos os 4 tipos (sempre v2).
+    Compara modelos selecionados (1 por provedor) para todos os 4 tipos (sempre v2).
+
+    Args:
+        model_keys: Lista de chaves do MODEL_REGISTRY (ex: ["gemini-flash", "llama4-scout", "kimi-k2.5"]).
+        progress_callback: Callable(completed, total, description) para progress bar.
 
     Returns:
-        Dict com 'results' (por tipo por API), 'session_id', 'cache_stats', 'total_elapsed'.
+        Dict com 'results' (por tipo por modelo), 'session_id', 'cache_stats', 'total_elapsed'.
     """
-    available = list_available()
-    if not available:
-        raise ValueError("Nenhuma API disponível. Configure ao menos uma chave no .env.")
+    if not model_keys:
+        raise ValueError("Nenhum modelo selecionado.")
 
     session_id = str(uuid4())
+    db.save_profile(profile)
     db.create_session(
         session_id=session_id,
         profile_id=profile["id"],
-        provider=",".join(available),
+        provider=",".join(model_keys),
         model="multi",
         topic=topic,
         mode="compare_apis",
     )
 
     generator = ContentGenerator(engine, cache)
-    total_tasks = len(CONTENT_TYPES) * len(available)
+    total_tasks = len(CONTENT_TYPES) * len(model_keys)
     completed = 0
     results = {}
     errors = {}
     start_total = time.time()
 
-    # Preparar tarefas
-    tasks = []
+    # Criar adapters
     adapters = {}
-    for provider in available:
+    for key in model_keys:
         try:
-            adapters[provider] = get_adapter(provider)
+            adapters[key] = get_adapter(key)
         except ValueError as e:
-            logger.error("Não foi possível criar adapter para %s: %s", provider, e)
+            logger.error("Não foi possível criar adapter para %s: %s", key, e)
             continue
 
+    # Preparar tarefas
+    tasks = []
     for ct in CONTENT_TYPES:
-        for provider, adapter in adapters.items():
+        for model_key, adapter in adapters.items():
             tasks.append({
-                "key": f"{ct}_{provider}",
+                "key": f"{ct}_{model_key}",
                 "content_type": ct,
-                "provider": provider,
+                "model_key": model_key,
                 "adapter": adapter,
             })
 
@@ -216,7 +216,7 @@ def compare_apis(profile: dict, topic: str, engine: PromptEngine,
 
             completed += 1
             if progress_callback:
-                label = PROVIDER_LABELS.get(task["provider"], task["provider"])
+                label = MODEL_REGISTRY[task["model_key"]]["label"]
                 progress_callback(completed, total_tasks, f"{task['content_type']} ({label})")
 
     total_elapsed = round(time.time() - start_total, 1)
@@ -224,17 +224,17 @@ def compare_apis(profile: dict, topic: str, engine: PromptEngine,
     # Organizar resultados por tipo
     organized = {}
     for ct in CONTENT_TYPES:
-        providers_data = {}
-        for provider in adapters:
-            key = f"{ct}_{provider}"
-            providers_data[provider] = {
+        models_data = {}
+        for model_key in adapters:
+            key = f"{ct}_{model_key}"
+            models_data[model_key] = {
                 "result": results.get(key),
                 "error": errors.get(key),
-                "label": PROVIDER_LABELS.get(provider, provider),
+                "label": MODEL_REGISTRY[model_key]["label"],
             }
         organized[ct] = {
             "label": CONTENT_TYPE_LABELS[ct],
-            "providers": providers_data,
+            "models": models_data,
         }
 
     db.end_session(session_id)
@@ -242,7 +242,7 @@ def compare_apis(profile: dict, topic: str, engine: PromptEngine,
     return {
         "results": organized,
         "session_id": session_id,
-        "providers": list(adapters.keys()),
+        "model_keys": list(adapters.keys()),
         "profile": profile,
         "topic": topic,
         "cache_stats": cache.get_stats(),

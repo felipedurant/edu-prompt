@@ -69,6 +69,9 @@ class SessionManager:
         # Monta system prompt para a sessão
         self.system_prompt = self.engine.build_conversation_system(self.profile, topic)
 
+        # Sincroniza perfil no DB antes de criar sessão (FK constraint)
+        self.db.save_profile(self.profile)
+
         # Cria sessão no DB
         self.db.create_session(
             session_id=self.session_id,
@@ -254,6 +257,7 @@ class SessionManager:
 
         self.system_prompt = self.engine.build_conversation_system(self.profile, new_topic)
 
+        self.db.save_profile(self.profile)
         self.db.create_session(
             session_id=self.session_id,
             profile_id=self.profile["id"],

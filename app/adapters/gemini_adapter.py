@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 class GeminiAdapter(LLMAdapter):
     """Adapter para Google Gemini usando SDK google-genai."""
 
-    def __init__(self, model: str | None = None):
+    def __init__(self, model: str | None = None, api_key: str | None = None):
         self._model_name = model or GEMINI_FLASH_MODEL
-        self._client = genai.Client(api_key=GEMINI_API_KEY)
+        self._client = genai.Client(api_key=api_key or GEMINI_API_KEY)
 
     def generate(self, messages: list[dict], system_prompt: str = "",
                  temperature: float = 0.7) -> str:
