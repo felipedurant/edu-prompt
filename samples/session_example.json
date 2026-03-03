@@ -1,0 +1,56 @@
+{
+  "session": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "profile_id": "ana_16_inte_visua_abc123",
+    "provider": "gemini",
+    "model": "gemini-2.5-flash",
+    "topic": "Fotossintese",
+    "mode": "conversation",
+    "started_at": "2026-03-03 10:00:00",
+    "ended_at": "2026-03-03 10:15:00"
+  },
+  "messages": [
+    {
+      "id": 1,
+      "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "role": "assistant",
+      "content": "# Fotossintese: Como as Plantas Produzem Energia\n\n## Ja parou para pensar de onde vem a energia das plantas?\n\nImagine que voce esta no patio da escola e olha para uma arvore enorme. Ela nao come, nao bebe suco, nao vai ao refeitorio... Entao, como ela cresce?\n\n## O Conceito Fundamental\n\n**Fotossintese** e o processo pelo qual as plantas convertem **luz solar** em **energia quimica** (glicose), usando agua e gas carbonico.\n\n### Passo a Passo (Chain-of-Thought)\n\n1. **Captacao de luz**: As folhas possuem **clorofila** (pigmento verde) que absorve a luz solar\n2. **Absorcao de agua**: As raizes absorvem agua do solo e transportam ate as folhas\n3. **Captacao de CO2**: Os **estomatos** (pequenos poros nas folhas) absorvem gas carbonico do ar\n4. **Reacao quimica**: Luz + H2O + CO2 -> C6H12O6 (glicose) + O2\n5. **Produto final**: A planta produz glicose (energia) e libera oxigenio\n\n> Ate aqui, ficou claro que a fotossintese e basicamente a \"cozinha\" da planta?\n\n## Conexoes Importantes\n\n- Sem fotossintese, nao haveria **oxigenio** na atmosfera\n- A glicose produzida alimenta toda a **cadeia alimentar**\n- Este processo e a base da **vida na Terra**\n\n**Conceito-chave para lembrar**: A fotossintese transforma luz em comida para a planta e oxigenio para nos.",
+      "content_type": "conceptual",
+      "prompt_version": "v2",
+      "source": "api",
+      "timestamp": "2026-03-03 10:00:05"
+    },
+    {
+      "id": 2,
+      "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "role": "user",
+      "content": "O que e clorofila exatamente?",
+      "content_type": "free_chat",
+      "prompt_version": null,
+      "source": null,
+      "timestamp": "2026-03-03 10:01:30"
+    },
+    {
+      "id": 3,
+      "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "role": "assistant",
+      "content": "Otima pergunta! A **clorofila** e um pigmento (substancia que da cor) presente nas celulas das folhas das plantas.\n\nPense nela como os **paineis solares** da planta:\n\n- Ela fica dentro de estruturas chamadas **cloroplastos** (como \"fabricas\" dentro das celulas)\n- Sua funcao principal e **absorver a luz solar** -- especialmente as cores vermelha e azul\n- A cor **verde** que vemos nas folhas e justamente a luz que a clorofila NAO absorve e reflete de volta\n\nEntao, quando voce ve uma folha verde, esta vendo a cor que a clorofila \"rejeitou\"!\n\nCuriosidade: no outono, quando as folhas ficam amarelas ou vermelhas, e porque a clorofila esta se decompondo e outros pigmentos (que estavam escondidos) aparecem.",
+      "content_type": "free_chat",
+      "prompt_version": null,
+      "source": "api",
+      "timestamp": "2026-03-03 10:01:35"
+    },
+    {
+      "id": 4,
+      "session_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "role": "assistant",
+      "content": "# Exemplos Praticos de Fotossintese\n\n## Exemplo 1: O Experimento do Copo d'Agua\n\nColoque uma planta aquatica (como elodea) em um copo com agua e deixe ao sol. Depois de algumas horas, voce vera **bolhinhas subindo** -- sao bolhas de **oxigenio**, produto da fotossintese!\n\n**Conceito aplicado**: A planta esta fazendo fotossintese debaixo d'agua, e o O2 liberado forma bolhas visiveis.\n\n## Exemplo 2: Folha Coberta\n\nCubra parte de uma folha com fita adesiva por uma semana. Depois, faca o teste de iodo: a parte coberta **nao tera amido** (ficara marrom), enquanto a parte exposta ficara **azul-escuro** (presenca de amido).\n\n**Por que funciona**: Sem luz, nao ha fotossintese, logo nao ha producao de glicose/amido.\n\n## Exemplo 3: Plantas no Quarto Escuro\n\nDeixe uma planta no escuro por varios dias. Ela comeca a **amarelar** porque sem luz, a clorofila se degrada e a planta nao produz energia.\n\n**Variacao**: E se mudassemos a cor da luz? Luz vermelha e azul aceleram a fotossintese; luz verde tem efeito minimo!\n\n## Desafio Para Voce\n\nPegue duas plantas iguais. Coloque uma no sol e outra na sombra. Regue igualmente por 2 semanas. Observe e anote as diferencas!",
+      "content_type": "practical",
+      "prompt_version": "v2",
+      "source": "api",
+      "timestamp": "2026-03-03 10:05:10"
+    }
+  ],
+  "evaluations": [],
+  "exported_at": "2026-03-03T10:20:00"
+}

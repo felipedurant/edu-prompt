@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}EduPrompt Platform{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="hero">
+        <h1>&#127891; EduPrompt Platform</h1>
+        <p>Plataforma educacional com IA personalizada &mdash; gere conte&uacute;do adaptado ao perfil de cada aluno</p>
+    </div>
+
+    <!-- Modelos disponíveis -->
+    <div class="card">
+        <h2>&#9989; Modelos Dispon&iacute;veis</h2>
+        <div class="models-grid">
+            {% for key, info in models.items() %}
+            <span class="badge badge-green">{{ info.label }}</span>
+            {% endfor %}
+            {% if not models %}
+            <p class="text-muted">Nenhum modelo configurado. Verifique seu .env</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ações principais -->
+    <div class="actions-grid">
+        <!-- Sessão Conversacional -->
+        <div class="card">
+            <h2>&#128172; Sess&atilde;o de Aprendizado</h2>
+            <p>Converse com a IA sobre qualquer t&oacute;pico, com comandos para exemplos, perguntas, resumos e quiz.</p>
+            <form action="{{ url_for('main.start_session') }}" method="post">
+                <div class="form-group">
+                    <label>Perfil do Aluno</label>
+                    <select name="profile_id" required>
+                        <option value="">Selecione...</option>
+                        {% for p in profiles %}
+                        <option value="{{ p.id }}">{{ p.nome }} ({{ p.idade }} anos, {{ p.nivel }}, {{ p.estilo }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Modelo</label>
+                    <select name="model_key" required>
+                        {% for key, info in models.items() %}
+                        <option value="{{ key }}">{{ info.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>T&oacute;pico de Estudo</label>
+                    <input type="text" name="topic" placeholder="Ex: Fotoss&iacute;ntese, Equa&ccedil;&otilde;es de 2o grau..." required>
+                </div>
+                <button type="submit" class="btn btn-primary">Iniciar Sess&atilde;o</button>
+            </form>
+        </div>
+
+        <!-- Comparação v1 vs v2 -->
+        <div class="card">
+            <h2>&#128260; Comparar Vers&otilde;es (v1 vs v2)</h2>
+            <p>Compare prompts b&aacute;sicos (v1) vs otimizados (v2) lado a lado para os 4 tipos de conte&uacute;do.</p>
+            <form action="{{ url_for('main.compare_versions_page') }}" method="post">
+                <div class="form-group">
+                    <label>Perfil do Aluno</label>
+                    <select name="profile_id" required>
+                        <option value="">Selecione...</option>
+                        {% for p in profiles %}
+                        <option value="{{ p.id }}">{{ p.nome }} ({{ p.idade }} anos, {{ p.nivel }}, {{ p.estilo }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Modelo</label>
+                    <select name="model_key" required>
+                        {% for key, info in models.items() %}
+                        <option value="{{ key }}">{{ info.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>T&oacute;pico</label>
+                    <input type="text" name="topic" placeholder="Ex: Fotoss&iacute;ntese..." required>
+                </div>
+                <button type="submit" class="btn btn-secondary">Comparar Vers&otilde;es</button>
+            </form>
+        </div>
+
+        <!-- Comparação Multi-Modelo -->
+        <div class="card">
+            <h2>&#128202; Comparar Modelos</h2>
+            <p>Compare respostas de diferentes modelos de IA lado a lado (sempre v2).</p>
+            <form action="{{ url_for('main.compare_models_page') }}" method="post">
+                <div class="form-group">
+                    <label>Perfil do Aluno</label>
+                    <select name="profile_id" required>
+                        <option value="">Selecione...</option>
+                        {% for p in profiles %}
+                        <option value="{{ p.id }}">{{ p.nome }} ({{ p.idade }} anos, {{ p.nivel }}, {{ p.estilo }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Modelos (selecione 2+)</label>
+                    {% for key, info in models.items() %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="model_keys" value="{{ key }}">
+                        {{ info.label }}
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="form-group">
+                    <label>T&oacute;pico</label>
+                    <input type="text" name="topic" placeholder="Ex: Fotoss&iacute;ntese..." required>
+                </div>
+                <button type="submit" class="btn btn-accent">Comparar Modelos</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Criar Perfil -->
+    <div class="card">
+        <h2>&#10133; Criar Novo Perfil</h2>
+        <form id="profile-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nome</label>
+                    <input type="text" id="pf-nome" placeholder="Nome do aluno" required>
+                </div>
+                <div class="form-group">
+                    <label>Idade</label>
+                    <input type="number" id="pf-idade" min="5" max="99" placeholder="Idade" required>
+                </div>
+                <div class="form-group">
+                    <label>N&iacute;vel</label>
+                    <select id="pf-nivel" required>
+                        <option value="iniciante">Iniciante</option>
+                        <option value="intermediario">Intermedi&aacute;rio</option>
+                        <option value="avancado">Avan&ccedil;ado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estilo</label>
+                    <select id="pf-estilo" required>
+                        {% for key, info in styles.items() %}
+                        <option value="{{ key }}">{{ info.emoji }} {{ info.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Contexto (opcional)</label>
+                <input type="text" id="pf-contexto" placeholder="Ex: estudante de biologia, preparando ENEM...">
+            </div>
+            <button type="submit" class="btn btn-primary">Criar Perfil</button>
+            <span id="profile-result"></span>
+        </form>
+    </div>
+
+    <!-- Perfis existentes -->
+    <div class="card">
+        <h2>&#128203; Perfis Cadastrados</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Idade</th>
+                        <th>N&iacute;vel</th>
+                        <th>Estilo</th>
+                        <th>Contexto</th>
+                    </tr>
+                </thead>
+                <tbody id="profiles-table">
+                    {% for p in profiles %}
+                    <tr>
+                        <td>{{ p.nome }}</td>
+                        <td>{{ p.idade }}</td>
+                        <td>{{ p.nivel | capitalize }}</td>
+                        <td>{{ p.estilo }}</td>
+                        <td>{{ p.get('contexto', '')[:50] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        nome: document.getElementById('pf-nome').value,
+        idade: document.getElementById('pf-idade').value,
+        nivel: document.getElementById('pf-nivel').value,
+        estilo: document.getElementById('pf-estilo').value,
+        contexto: document.getElementById('pf-contexto').value,
+    };
+    try {
+        const resp = await fetch('/api/profiles', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data),
+        });
+        const result = await resp.json();
+        if (result.error) {
+            document.getElementById('profile-result').textContent = result.error;
+        } else {
+            document.getElementById('profile-result').textContent = 'Perfil criado!';
+            setTimeout(() => location.reload(), 800);
+        }
+    } catch (err) {
+        document.getElementById('profile-result').textContent = 'Erro ao criar perfil.';
+    }
+});
+</script>
+{% endblock %}
