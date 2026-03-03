@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Sessao - {{ topic }} | EduPrompt{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="session-header">
+        <h2>&#128172; Sess&atilde;o: {{ topic }}</h2>
+        <p class="text-muted">
+            Perfil: <strong>{{ profile.nome }}</strong> ({{ profile.idade }} anos, {{ profile.nivel }}, {{ profile.estilo }})
+            | Modelo: <strong>{{ model_label }}</strong>
+        </p>
+    </div>
+
+    <!-- Chat area -->
+    <div class="chat-container" id="chat-container">
+        <div class="message assistant">
+            <div class="message-header">&#128218; Explica&ccedil;&atilde;o Conceitual
+                <span class="source-badge {% if initial_source == 'cache' %}badge-yellow{% else %}badge-green{% endif %}">
+                    {% if initial_source == 'cache' %}&#9889; Cache{% else %}&#127760; API{% endif %}
+                </span>
+            </div>
+            <div class="message-content">{{ initial_content }}</div>
+        </div>
+    </div>
+
+    <!-- Commands bar -->
+    <div class="commands-bar">
+        <span class="text-muted">Comandos:</span>
+        {% for cmd, desc in commands.items() %}
+        {% if cmd not in ['/novo_topico', '/sair'] %}
+        <button class="cmd-btn" data-cmd="{{ cmd }}" title="{{ desc }}">{{ cmd }}</button>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Input area -->
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Digite sua mensagem ou use um comando (/)..." autofocus>
+        <button id="send-btn" class="btn btn-primary">Enviar</button>
+    </div>
+
+    <div class="session-actions">
+        <button id="end-session" class="btn btn-danger">Encerrar Sess&atilde;o</button>
+    </div>
+</div>
+
+<script>
+const SESSION_ID = '{{ session_id }}';
+const chatContainer = document.getElementById('chat-container');
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+let isLoading = false;
+
+function addMessage(role, content, meta = {}) {
+    const div = document.createElement('div');
+    div.className = `message ${role}`;
+
+    let header = '';
+    if (role === 'assistant') {
+        const label = meta.label || 'Professor';
+        let sourceBadge = '';
+        if (meta.source === 'cache') {
+            sourceBadge = '<span class="source-badge badge-yellow">&#9889; Cache</span>';
+        } else if (meta.source === 'api') {
+            const elapsed = meta.elapsed ? ` (${meta.elapsed}s)` : '';
+            sourceBadge = `<span class="source-badge badge-green">&#127760; API${elapsed}</span>`;
+        }
+        header = `<div class="message-header">${label} ${sourceBadge}</div>`;
+    } else {
+        header = '<div class="message-header">&#128100; Voc&ecirc;</div>';
+    }
+
+    div.innerHTML = `${header}<div class="message-content">${content}</div>`;
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function addSystemMessage(text) {
+    const div = document.createElement('div');
+    div.className = 'message system';
+    div.innerHTML = `<div class="message-content">${text}</div>`;
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function showLoading() {
+    const div = document.createElement('div');
+    div.className = 'message assistant loading';
+    div.id = 'loading-msg';
+    div.innerHTML = '<div class="message-content">&#9203; Pensando...</div>';
+    chatContainer.appendChild(div);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function hideLoading() {
+    const el = document.getElementById('loading-msg');
+    if (el) el.remove();
+}
+
+async function sendMessage(msg) {
+    if (isLoading || !msg.trim()) return;
+    isLoading = true;
+    sendBtn.disabled = true;
+
+    if (!msg.startsWith('/')) {
+        addMessage('user', msg);
+    } else {
+        addSystemMessage(`Comando: <code>${msg}</code>`);
+    }
+
+    chatInput.value = '';
+    showLoading();
+
+    try {
+        const resp = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({session_id: SESSION_ID, message: msg}),
+        });
+
+        hideLoading();
+        const data = await resp.json();
+
+        if (data.error) {
+            addSystemMessage(`&#9888;&#65039; ${data.error}`);
+            isLoading = false;
+            sendBtn.disabled = false;
+            return;
+        }
+
+        switch (data.type) {
+            case 'message':
+            case 'content':
+            case 'quiz_feedback':
+                addMessage('assistant', data.content, {
+                    source: data.source,
+                    elapsed: data.elapsed,
+                    label: data.label || (data.type === 'quiz_feedback' ? 'Feedback do Quiz' : 'Professor'),
+                });
+                if (data.topic) {
+                    document.querySelector('.session-header h2').textContent = `\uD83D\uDCAC Sessao: ${data.topic}`;
+                }
+                break;
+            case 'quiz':
+                addMessage('assistant', data.content, {
+                    source: data.source,
+                    elapsed: data.elapsed,
+                    label: '\uD83E\uDDE0 Quiz',
+                });
+                addSystemMessage('Responda a pergunta acima digitando sua resposta.');
+                break;
+            case 'commands':
+                let cmdsHtml = '<strong>Comandos dispon&iacute;veis:</strong><ul>';
+                for (const [cmd, desc] of Object.entries(data.commands)) {
+                    cmdsHtml += `<li><code>${cmd}</code> &mdash; ${desc}</li>`;
+                }
+                cmdsHtml += '</ul>';
+                addSystemMessage(cmdsHtml);
+                break;
+            case 'already_generated':
+                addMessage('assistant', data.content, {source: 'memory', label: 'J&aacute; gerado anteriormente'});
+                addSystemMessage('Este conte&uacute;do j&aacute; foi gerado. <button class="btn-link" onclick="regenerate(\'' + data.content_type + '\')">Regenerar?</button>');
+                break;
+            case 'end':
+                addSystemMessage(data.message);
+                chatInput.disabled = true;
+                sendBtn.disabled = true;
+                break;
+        }
+    } catch (err) {
+        hideLoading();
+        addSystemMessage('&#9888;&#65039; Erro de conex&atilde;o.');
+    }
+
+    isLoading = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+}
+
+async function regenerate(contentType) {
+    showLoading();
+    try {
+        const resp = await fetch('/api/regenerate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({session_id: SESSION_ID, content_type: contentType}),
+        });
+        hideLoading();
+        const data = await resp.json();
+        if (data.error) {
+            addSystemMessage(`&#9888;&#65039; ${data.error}`);
+        } else {
+            addMessage('assistant', data.content, {source: data.source, elapsed: data.elapsed, label: 'Regenerado'});
+        }
+    } catch {
+        hideLoading();
+        addSystemMessage('&#9888;&#65039; Erro ao regenerar.');
+    }
+}
+
+// Event listeners
+sendBtn.addEventListener('click', () => sendMessage(chatInput.value));
+chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendMessage(chatInput.value);
+});
+
+document.querySelectorAll('.cmd-btn').forEach(btn => {
+    btn.addEventListener('click', () => sendMessage(btn.dataset.cmd));
+});
+
+document.getElementById('end-session').addEventListener('click', () => sendMessage('/sair'));
+
+// Scroll to bottom on load
+chatContainer.scrollTop = chatContainer.scrollHeight;
+</script>
+{% endblock %}

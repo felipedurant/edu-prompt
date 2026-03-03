@@ -1,0 +1,92 @@
+{
+  "topic": "Equacoes de Segundo Grau",
+  "profile": {
+    "id": "pedro_14_inic_cines_def456",
+    "nome": "Pedro",
+    "idade": 14,
+    "nivel": "iniciante",
+    "estilo": "cinestesico",
+    "contexto": "estudante do 9o ano"
+  },
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "session_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "results": {
+    "conceptual": {
+      "label": "Explicacao Conceitual",
+      "v1": {
+        "content": "Equacoes de segundo grau sao equacoes no formato ax^2 + bx + c = 0, onde a, b e c sao numeros e a diferente de zero.\n\nPense passo a passo:\n1. Primeiro, identifique os coeficientes a, b e c\n2. Depois, calcule o discriminante: delta = b^2 - 4ac\n3. Se delta > 0, tem duas raizes reais\n4. Se delta = 0, tem uma raiz real\n5. Se delta < 0, nao tem raiz real\n\nAs raizes sao calculadas pela formula de Bhaskara: x = (-b +/- raiz(delta)) / 2a",
+        "source": "api",
+        "elapsed": 1.8,
+        "content_type": "conceptual",
+        "version": "v1"
+      },
+      "v2": {
+        "content": "# Equacoes de Segundo Grau: Desvendando o Misterio do x^2\n\n## Imagine a seguinte situacao...\n\nVoce esta jogando futebol e chuta a bola para o alto. A trajetoria da bola faz uma **curva** -- sobe, atinge o ponto mais alto, e desce. Essa curva e descrita por uma **equacao de segundo grau**!\n\n## O que e?\n\nUma equacao de segundo grau tem a forma:\n\n**ax^2 + bx + c = 0**\n\nOnde:\n- **a** = quanto a curva \"abre\" (nao pode ser zero!)\n- **b** = para onde a curva se desloca\n- **c** = onde a curva cruza o eixo y\n\n### Construindo Passo a Passo\n\n**Passo 1 - Identifique os ingredientes**\nEm 2x^2 + 3x - 5 = 0: a=2, b=3, c=-5\n\n**Passo 2 - Calcule o Delta (discriminante)**\nDelta = b^2 - 4.a.c = 9 - 4(2)(-5) = 9 + 40 = 49\n\n**Passo 3 - Interprete o Delta**\n- Delta > 0 (49 > 0): Duas solucoes! A bola cruza o chao em 2 pontos\n\n**Passo 4 - Encontre as raizes (Formula de Bhaskara)**\nx = (-3 +/- raiz(49)) / (2.2) = (-3 +/- 7) / 4\nx1 = 1 e x2 = -2.5\n\n> Ate aqui, ficou claro que delta e como um \"detector\" que revela quantas solucoes existem?\n\n## Atividade Pratica\n\nPegue uma bola e jogue para cima. Observe: ela sobe, para, e desce. Cada ponto dessa trajetoria pode ser calculado com uma equacao de segundo grau!\n\n**Conceito-chave**: Equacao de segundo grau modela qualquer situacao com formato de parabola -- trajetorias, areas, lucros.",
+        "source": "api",
+        "elapsed": 2.3,
+        "content_type": "conceptual",
+        "version": "v2"
+      }
+    },
+    "practical": {
+      "label": "Exemplos Praticos",
+      "v1": {
+        "content": "Exemplos de equacoes de segundo grau:\n\n1. x^2 - 5x + 6 = 0 -> a=1, b=-5, c=6 -> delta=25-24=1 -> x1=3, x2=2\n\n2. x^2 + 4x + 4 = 0 -> a=1, b=4, c=4 -> delta=16-16=0 -> x=-2\n\n3. 2x^2 - 8 = 0 -> a=2, b=0, c=-8 -> delta=0+64=64 -> x1=2, x2=-2",
+        "source": "api",
+        "elapsed": 1.5,
+        "content_type": "practical",
+        "version": "v1"
+      },
+      "v2": {
+        "content": "# Exemplos Praticos: Equacoes de Segundo Grau no Dia a Dia\n\n## Exemplo 1: A Quadra de Futebol\nVoce quer construir uma quadra retangular com 60m^2 de area. O comprimento e 7m a mais que a largura. Quais as dimensoes?\n\n**Montando**: largura = x, comprimento = x+7\nArea: x(x+7) = 60 -> x^2 + 7x - 60 = 0\nDelta = 49 + 240 = 289 -> raiz(289) = 17\nx = (-7+17)/2 = 5m (largura), comprimento = 12m\n\n**Conceito aplicado**: Problemas de area frequentemente geram equacoes de segundo grau!\n\n## Exemplo 2: O Pulo do Skatista\nUm skatista salta de uma rampa. Sua altura h (em metros) em funcao do tempo t e:\nh = -5t^2 + 10t\n\nQuando ele volta ao chao? h = 0:\n-5t^2 + 10t = 0 -> t(-5t + 10) = 0\nt = 0 (saida) ou t = 2s (aterrissagem)\n\n**Tente**: Qual a altura maxima? (Dica: ocorre no meio do voo, t=1s)\n\n## Exemplo 3: O Lucro da Barraquinha\nVoce vende brigadeiros a R$ x cada. Lucro = -2x^2 + 20x - 32\nQual preco da lucro zero? -2x^2 + 20x - 32 = 0\n\nx1 = 2 e x2 = 8 -> Lucro zero a R$2 ou R$8\n\n## Desafio\nUma piscina retangular tem perimetro de 30m e area de 50m^2. Quais sao as dimensoes? Monte a equacao e resolva!",
+        "source": "api",
+        "elapsed": 2.1,
+        "content_type": "practical",
+        "version": "v2"
+      }
+    },
+    "reflection": {
+      "label": "Perguntas de Reflexao",
+      "v1": {
+        "content": "Perguntas sobre equacoes de segundo grau:\n\n1. O que acontece quando delta e negativo?\n2. Por que o coeficiente 'a' nao pode ser zero?\n3. Cite uma situacao real onde se usa equacao de segundo grau.\n4. Qual a diferenca entre equacao de primeiro e segundo grau?",
+        "source": "api",
+        "elapsed": 1.2,
+        "content_type": "reflection",
+        "version": "v1"
+      },
+      "v2": {
+        "content": "# Perguntas de Reflexao: Equacoes de Segundo Grau\n\n## COMPREENSAO\n\n**1.** Com suas proprias palavras, explique por que o delta e tao importante para resolver uma equacao de segundo grau.\n*Dica: pense no delta como um \"semaforo\" -- o que cada cor significaria?*\n\n**2.** Se alguem te disser que uma equacao de segundo grau tem 3 raizes, o que voce responderia?\n*Dica: o que o grau da equacao garante sobre o numero maximo de raizes?*\n\n## APLICACAO\n\n**3.** Um jardineiro quer cercar um canteiro retangular com 20m de tela. Qual a area maxima que ele consegue cercar? Monte a equacao e resolva.\n*Dica: se um lado mede x, o outro mede (10-x)*\n\n**4.** Como voce usaria equacoes de segundo grau para calcular a trajetoria de uma bola de basquete?\n*Dica: a altura depende do tempo e da gravidade*\n\n## ANALISE\n\n**5.** Quais sao as diferencas entre resolver equacoes de segundo grau por Bhaskara e por soma/produto? Quando cada metodo e mais vantajoso?\n*Dica: compare em termos de praticidade e quando cada um funciona*\n\n## CRIACAO\n\n**6.** Invente um problema do seu cotidiano que resulte em uma equacao de segundo grau. Resolva-o e explique o significado de cada raiz encontrada.\n*Dica: pense em areas, trajetorias ou situacoes com crescimento e depois queda*",
+        "source": "api",
+        "elapsed": 1.9,
+        "content_type": "reflection",
+        "version": "v2"
+      }
+    },
+    "visual": {
+      "label": "Resumo Visual",
+      "v1": {
+        "content": "Resumo de Equacoes de Segundo Grau:\n\nFormula: ax^2 + bx + c = 0\n\nDelta = b^2 - 4ac\n\nSe delta > 0: duas raizes\nSe delta = 0: uma raiz\nSe delta < 0: sem raiz real\n\nBhaskara: x = (-b +/- sqrt(delta)) / 2a",
+        "source": "api",
+        "elapsed": 1.0,
+        "content_type": "visual",
+        "version": "v1"
+      },
+      "v2": {
+        "content": "# Resumo Visual: Equacoes de Segundo Grau\n\n## Mapa Mental\n\n```\n              EQUACAO DE 2o GRAU\n              ax^2 + bx + c = 0\n                     |\n        +------------+------------+\n        |            |            |\n   COEFICIENTES   DELTA        RAIZES\n   a != 0        b^2-4ac      Bhaskara\n   b (qualquer)     |         x=(-b+-sqrt(d))/2a\n   c (qualquer)     |\n              +-----+-----+\n              |     |     |\n            d>0   d=0   d<0\n          2 raizes 1 raiz 0 raizes\n```\n\n## Tabela-Resumo\n\n| Conceito | Definicao | Exemplo |\n|----------|-----------|----------|\n| Coeficiente a | Determina abertura da parabola | Em 3x^2+2x-1: a=3 |\n| Delta | Discriminante, determina n de raizes | d=4-4(3)(-1)=16 |\n| Bhaskara | Formula para encontrar raizes | x=(-2+-4)/6 |\n| Parabola | Grafico da equacao (forma de U) | Trajetoria de bola |\n\n## Regra Rapida\n\n**\"Delta Decide, Bhaskara Resolve\"**\n1. Calcule delta primeiro\n2. Se positivo, use Bhaskara\n3. Se zero, raiz unica = -b/2a\n\n## Conexoes\n- Fisica: movimento de projeteis (MUV)\n- Geometria: problemas com area\n- Economia: funcoes de lucro",
+        "source": "api",
+        "elapsed": 2.5,
+        "content_type": "visual",
+        "version": "v2"
+      }
+    }
+  },
+  "cache_stats": {
+    "hits": 0,
+    "misses": 8,
+    "total": 8,
+    "hit_rate": 0
+  },
+  "total_elapsed": 6.2,
+  "errors": {}
+}

@@ -11,9 +11,9 @@ app/
 │   ├── __init__.py           # Factory: get_adapter(), list_available(), get_judge_adapter()
 │   ├── base.py               # ABC LLMAdapter (generate, get_model_name, get_provider_name)
 │   ├── exceptions.py         # LLMError, LLMConnectionError, LLMRateLimitError, etc.
-│   ├── gemini_adapter.py     # Google Gemini (SDK próprio google-generativeai)
-│   ├── groq_adapter.py       # Groq Llama 70B (formato OpenAI)
-│   └── deepseek_adapter.py   # DeepSeek V3.2 (formato OpenAI)
+│   ├── gemini_adapter.py     # Google Gemini (SDK próprio google-genai)
+│   ├── groq_adapter.py       # Groq (formato OpenAI)
+│   └── openrouter_adapter.py # OpenRouter (formato OpenAI)
 ├── core/                     # Lógica de negócio
 │   ├── profiles.py           # CRUD de perfis (JSON file-based)
 │   ├── prompt_engine.py      # CORAÇÃO: 4 builders × 2 versões × 4 estilos
@@ -21,18 +21,18 @@ app/
 │   ├── session.py            # SessionManager: conversa, comandos, quiz, sliding window
 │   ├── onboarding.py         # Quiz VARK (7 perguntas) + estilos de aprendizado
 │   ├── comparison.py         # Comparação v1/v2 e multi-API (ThreadPoolExecutor)
-│   ├── evaluator.py          # LLM-as-judge (Gemini 2.5 Pro) — Fase 4
+│   ├── evaluator.py          # LLM-as-judge (Gemini 2.5 Pro)
 │   └── export.py             # Exportação JSON + Markdown
 ├── storage/
 │   ├── database.py           # SQLite: schema, queries (sessions, messages, cache, evaluations)
 │   └── cache.py              # CacheManager: SHA-256 hash, TTL, estatísticas
 ├── cli/
 │   └── main.py               # CLI Typer + Rich: menu, sessão, comparações, histórico
-└── web/                      # Flask — Fase 4
-    ├── app.py
-    ├── routes.py
-    ├── templates/
-    └── static/
+└── web/                      # Flask (interface web)
+    ├── app.py                # Factory: create_app()
+    ├── routes.py             # Blueprint: rotas + API AJAX para chat
+    ├── templates/            # base.html, home.html, session.html, comparison.html
+    └── static/               # style.css (dark theme)
 ```
 
 ## Fluxo de Dados
@@ -75,10 +75,10 @@ Usuário (CLI/Web)
         ├── get_model_name() → str
         └── get_provider_name() → str
              │
-    ┌────────┼────────────┐
-    │        │            │
-GeminiAdapter  GroqAdapter  DeepSeekAdapter
-(SDK próprio)  (OpenAI fmt)  (OpenAI fmt)
+    ┌────────┼──────────────────┐
+    │        │                  │
+GeminiAdapter  GroqAdapter  OpenRouterAdapter
+(SDK próprio)  (OpenAI fmt)   (OpenAI fmt)
 ```
 
 - **Factory**: `get_adapter("gemini")` retorna adapter configurado

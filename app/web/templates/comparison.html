@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Comparacao {{ mode }} | EduPrompt{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="session-header">
+        {% if mode == 'versions' %}
+        <h2>&#128260; Compara&ccedil;&atilde;o v1 vs v2: {{ topic }}</h2>
+        {% else %}
+        <h2>&#128202; Compara&ccedil;&atilde;o Multi-Modelo: {{ topic }}</h2>
+        {% endif %}
+        <p class="text-muted">
+            Perfil: <strong>{{ profile.nome }}</strong> ({{ profile.idade }} anos, {{ profile.nivel }}, {{ profile.estilo }})
+            | Modelo: <strong>{{ model_label }}</strong>
+            | Tempo: <strong>{{ result.total_elapsed }}s</strong>
+        </p>
+    </div>
+
+    {% for ct in content_types %}
+    {% set data = result.results.get(ct, {}) %}
+    <div class="comparison-section">
+        <h3 class="section-title">{{ labels.get(ct, ct) }}</h3>
+
+        {% if mode == 'versions' %}
+        <div class="comparison-grid two-cols">
+            <!-- v1 -->
+            <div class="comparison-card v1">
+                <div class="card-header">v1 (B&aacute;sico)
+                    {% if data.get('v1') %}
+                    <span class="source-badge {% if data.v1.source == 'cache' %}badge-yellow{% else %}badge-green{% endif %}">
+                        {% if data.v1.source == 'cache' %}&#9889; Cache{% else %}&#127760; {{ data.v1.get('elapsed', 0) }}s{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if data.get('v1') %}
+                    {{ data.v1.content }}
+                    {% elif data.get('v1_error') %}
+                    <p class="error">&#9888;&#65039; {{ data.v1_error }}</p>
+                    {% else %}
+                    <p class="text-muted">N&atilde;o dispon&iacute;vel</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- v2 -->
+            <div class="comparison-card v2">
+                <div class="card-header">v2 (Otimizado)
+                    {% if data.get('v2') %}
+                    <span class="source-badge {% if data.v2.source == 'cache' %}badge-yellow{% else %}badge-green{% endif %}">
+                        {% if data.v2.source == 'cache' %}&#9889; Cache{% else %}&#127760; {{ data.v2.get('elapsed', 0) }}s{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if data.get('v2') %}
+                    {{ data.v2.content }}
+                    {% elif data.get('v2_error') %}
+                    <p class="error">&#9888;&#65039; {{ data.v2_error }}</p>
+                    {% else %}
+                    <p class="text-muted">N&atilde;o dispon&iacute;vel</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Multi-modelo -->
+        <div class="comparison-grid multi-cols">
+            {% for model_key, mdata in data.get('models', {}).items() %}
+            <div class="comparison-card">
+                <div class="card-header">{{ mdata.label }}
+                    {% if mdata.get('result') %}
+                    <span class="source-badge {% if mdata.result.source == 'cache' %}badge-yellow{% else %}badge-green{% endif %}">
+                        {% if mdata.result.source == 'cache' %}&#9889; Cache{% else %}&#127760; {{ mdata.result.get('elapsed', 0) }}s{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if mdata.get('result') %}
+                    {{ mdata.result.content }}
+                    {% elif mdata.get('error') %}
+                    <p class="error">&#9888;&#65039; {{ mdata.error }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Cache stats -->
+    <div class="card stats-card">
+        <h3>&#128202; Estat&iacute;sticas</h3>
+        <p>
+            Cache: <strong>{{ result.cache_stats.hits }}</strong> hits /
+            <strong>{{ result.cache_stats.misses }}</strong> misses
+            ({{ result.cache_stats.hit_rate }}% economia)
+            | Tempo total: <strong>{{ result.total_elapsed }}s</strong>
+        </p>
+    </div>
+
+    <div class="session-actions">
+        <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Voltar ao In&iacute;cio</a>
+    </div>
+</div>
+{% endblock %}
