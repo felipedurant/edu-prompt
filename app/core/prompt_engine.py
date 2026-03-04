@@ -281,8 +281,9 @@ class PromptEngine:
     # ─── Builders: Resumo Visual ─────────────────────────
 
     def build_visual_summary(self, profile: dict, topic: str,
-                              version: str = DEFAULT_PROMPT_VERSION) -> tuple[str, str]:
-        """Mapa mental/diagrama ASCII ou descrição visual."""
+                              version: str = DEFAULT_PROMPT_VERSION,
+                              output_format: str = "ascii") -> tuple[str, str]:
+        """Mapa mental/diagrama ASCII ou Mermaid, conforme output_format."""
         topic = self.sanitize_topic(topic)
 
         if version == "v1":
@@ -301,17 +302,42 @@ class PromptEngine:
                 f"{self._get_persona_v2(profile)}\n\n"
                 f"ESTILO DE ENSINO:\n{self.STYLE_ADAPTATIONS_V2.get(profile['estilo'], '')}"
             )
+
+            if output_format == "mermaid":
+                visual_instructions = (
+                    f"1. MAPA MENTAL em Mermaid (use bloco ```mermaid):\n"
+                    f"   - Use sintaxe mindmap do Mermaid.js\n"
+                    f"   - Conceito central no root, ramificações como filhos\n"
+                    f"   - Exemplo de sintaxe:\n"
+                    f"     ```mermaid\n"
+                    f"     mindmap\n"
+                    f"       root((Tema Central))\n"
+                    f"         Conceito A\n"
+                    f"           Sub-conceito 1\n"
+                    f"           Sub-conceito 2\n"
+                    f"         Conceito B\n"
+                    f"     ```\n\n"
+                    f"2. TABELA-RESUMO em Markdown:\n"
+                    f"   | Conceito | Definição | Exemplo |\n"
+                    f"   |----------|-----------|----------|\n"
+                    f"   - 3-5 linhas com os pontos-chave\n\n"
+                )
+            else:
+                visual_instructions = (
+                    f"1. MAPA MENTAL em ASCII/texto:\n"
+                    f"   - Conceito central no meio\n"
+                    f"   - Ramificações com sub-conceitos\n"
+                    f"   - Use └──, ├──, │ para criar a estrutura visual\n\n"
+                    f"2. TABELA-RESUMO:\n"
+                    f"   - Conceito | Definição | Exemplo\n"
+                    f"   - 3-5 linhas com os pontos-chave\n\n"
+                )
+
             user = (
                 f"{self._build_context_v2(profile, topic)}\n\n"
                 f"TAREFA: Crie um resumo visual completo sobre '{topic}'.\n\n"
                 f"INCLUA TODOS estes elementos:\n"
-                f"1. MAPA MENTAL em ASCII/texto:\n"
-                f"   - Conceito central no meio\n"
-                f"   - Ramificações com sub-conceitos\n"
-                f"   - Use └──, ├──, │ para criar a estrutura visual\n\n"
-                f"2. TABELA-RESUMO:\n"
-                f"   - Conceito | Definição | Exemplo\n"
-                f"   - 3-5 linhas com os pontos-chave\n\n"
+                f"{visual_instructions}"
                 f"3. FÓRMULA/REGRA RÁPIDA (se aplicável):\n"
                 f"   - Uma frase-síntese para memorização\n"
                 f"   - Mnemônico, se possível\n\n"
@@ -395,12 +421,14 @@ class PromptEngine:
     # ─── Builder genérico ────────────────────────────────
 
     def build_prompt(self, profile: dict, topic: str, content_type: str,
-                     version: str = DEFAULT_PROMPT_VERSION) -> tuple[str, str]:
+                     version: str = DEFAULT_PROMPT_VERSION,
+                     output_format: str = "ascii") -> tuple[str, str]:
         """
         Builder genérico que despacha para o builder correto.
 
         Args:
             content_type: 'conceptual', 'practical', 'reflection', 'visual'
+            output_format: 'ascii' (CLI) ou 'mermaid' (web) — afeta apenas 'visual'
         """
         builders = {
             "conceptual": self.build_conceptual_explanation,
@@ -411,6 +439,8 @@ class PromptEngine:
         builder = builders.get(content_type)
         if not builder:
             raise ValueError(f"Tipo de conteúdo inválido: {content_type}")
+        if content_type == "visual":
+            return builder(profile, topic, version, output_format=output_format)
         return builder(profile, topic, version)
 
     # ─── Prompt de conversa livre ────────────────────────

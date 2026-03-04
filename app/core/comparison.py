@@ -35,12 +35,13 @@ def _generate_version_batch(version: str, adapter: LLMAdapter, profile: dict,
                             db: Database, session_id: str,
                             results: dict, errors: dict, lock: threading.Lock,
                             completed_counter: list, total_tasks: int,
-                            progress_callback):
+                            progress_callback, output_format: str = "ascii"):
     """Worker que processa todos os content_types para uma versão (v1 ou v2)."""
     for ct in CONTENT_TYPES:
         key = f"{ct}_{version}"
         try:
-            result = generator.generate_single(adapter, profile, topic, ct, version)
+            result = generator.generate_single(adapter, profile, topic, ct, version,
+                                               output_format=output_format)
             with lock:
                 results[key] = result
             db.add_message(
@@ -65,7 +66,7 @@ def _generate_version_batch(version: str, adapter: LLMAdapter, profile: dict,
 
 def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
                      engine: PromptEngine, cache: CacheManager, db: Database,
-                     progress_callback=None) -> dict:
+                     progress_callback=None, output_format: str = "ascii") -> dict:
     """
     Compara v1 vs v2 para todos os 4 tipos de conteúdo.
     Usa 2 threads: uma para v1, outra para v2.
@@ -107,6 +108,7 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
                 version, adapter, profile, topic, generator,
                 db, session_id, results, errors, lock,
                 completed_counter, total_tasks, progress_callback,
+                output_format,
             )
             futures.append(future)
 
@@ -147,7 +149,7 @@ def _generate_model_batch(model_key: str, adapter: LLMAdapter, profile: dict,
                           db: Database, session_id: str,
                           results: dict, errors: dict, lock: threading.Lock,
                           completed_counter: list, total_tasks: int,
-                          progress_callback):
+                          progress_callback, output_format: str = "ascii"):
     """Worker que processa todos os content_types para um modelo."""
     label = MODEL_REGISTRY[model_key]["label"]
     for ct in CONTENT_TYPES:
@@ -155,6 +157,7 @@ def _generate_model_batch(model_key: str, adapter: LLMAdapter, profile: dict,
         try:
             result = generator.generate_single(
                 adapter, profile, topic, ct, DEFAULT_PROMPT_VERSION,
+                output_format=output_format,
             )
             with lock:
                 results[key] = result
@@ -180,7 +183,7 @@ def _generate_model_batch(model_key: str, adapter: LLMAdapter, profile: dict,
 
 def compare_models(model_keys: list[str], profile: dict, topic: str,
                    engine: PromptEngine, cache: CacheManager, db: Database,
-                   progress_callback=None) -> dict:
+                   progress_callback=None, output_format: str = "ascii") -> dict:
     """
     Compara modelos selecionados para todos os 4 tipos (sempre v2).
     Usa 1 thread por modelo — cada thread processa seus content_types sequencialmente.
@@ -232,6 +235,7 @@ def compare_models(model_keys: list[str], profile: dict, topic: str,
                 model_key, adapter, profile, topic, generator,
                 db, session_id, results, errors, lock,
                 completed_counter, total_tasks, progress_callback,
+                output_format,
             )
             futures.append(future)
 

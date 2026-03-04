@@ -97,9 +97,9 @@
             return;
         }
 
-        // Render content
-        bodyEl.style.whiteSpace = 'pre-wrap';
-        bodyEl.textContent = data.content || '';
+        // Render content as Markdown
+        bodyEl.innerHTML = renderMarkdown(data.content);
+        renderMermaidBlocks(bodyEl);
 
         // Render source badge
         if (badgeEl) {

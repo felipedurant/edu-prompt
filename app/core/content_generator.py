@@ -20,7 +20,8 @@ class ContentGenerator:
         self.cache = cache
 
     def generate_single(self, adapter: LLMAdapter, profile: dict, topic: str,
-                        content_type: str, version: str = DEFAULT_PROMPT_VERSION) -> dict:
+                        content_type: str, version: str = DEFAULT_PROMPT_VERSION,
+                        output_format: str = "ascii") -> dict:
         """
         Gera um único tipo de conteúdo.
 
@@ -28,7 +29,8 @@ class ContentGenerator:
             Dict com 'content', 'source' ('api'|'cache'), 'elapsed',
             'provider', 'model', 'content_type', 'version'.
         """
-        system, user = self.engine.build_prompt(profile, topic, content_type, version)
+        system, user = self.engine.build_prompt(profile, topic, content_type, version,
+                                                output_format=output_format)
         messages = [{"role": "user", "content": user}]
 
         provider = adapter.get_provider_name()
@@ -89,7 +91,8 @@ class ContentGenerator:
         }
 
     def generate_all_types(self, adapter: LLMAdapter, profile: dict, topic: str,
-                           version: str = DEFAULT_PROMPT_VERSION) -> dict[str, dict]:
+                           version: str = DEFAULT_PROMPT_VERSION,
+                           output_format: str = "ascii") -> dict[str, dict]:
         """
         Gera todos os 4 tipos de conteúdo sequencialmente.
 
@@ -98,5 +101,6 @@ class ContentGenerator:
         """
         results = {}
         for ct in CONTENT_TYPES:
-            results[ct] = self.generate_single(adapter, profile, topic, ct, version)
+            results[ct] = self.generate_single(adapter, profile, topic, ct, version,
+                                               output_format=output_format)
         return results

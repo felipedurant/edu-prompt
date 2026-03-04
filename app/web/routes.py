@@ -102,7 +102,8 @@ def start_session():
     except ValueError:
         return redirect(url_for("main.home"))
 
-    sm = SessionManager(profile, adapter, get_engine(), get_cache(), get_db())
+    sm = SessionManager(profile, adapter, get_engine(), get_cache(), get_db(),
+                        output_format="mermaid")
     result = sm.start_topic(topic)
     _sessions[sm.session_id] = sm
 
@@ -262,7 +263,7 @@ def _run_versions_comparison(cid: str, adapter, profile: dict, topic: str,
                     _last_comparisons[cid].setdefault("partial_results", {})[key] = {"error": error}
 
         result = compare_versions(adapter, profile, topic, get_engine(), cache, get_db(),
-                                  progress_callback=progress_cb)
+                                  progress_callback=progress_cb, output_format="mermaid")
         model_label = MODEL_REGISTRY.get(model_key, {}).get("label", model_key)
 
         # Extrair dados para o judge
@@ -306,7 +307,7 @@ def _run_models_comparison(cid: str, model_keys: list[str], profile: dict,
                     _last_comparisons[cid].setdefault("partial_results", {})[key] = {"error": error}
 
         result = compare_models(model_keys, profile, topic, get_engine(), cache, get_db(),
-                                progress_callback=progress_cb)
+                                progress_callback=progress_cb, output_format="mermaid")
 
         # Extrair dados para o judge
         api_outputs = {}

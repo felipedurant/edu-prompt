@@ -19,7 +19,7 @@
                     {% if initial_source == 'cache' %}&#9889; Cache{% else %}&#127760; API{% endif %}
                 </span>
             </div>
-            <div class="message-content">{{ initial_content }}</div>
+            <div class="message-content" id="initial-content"></div>
         </div>
     </div>
 
@@ -70,8 +70,9 @@ function addMessage(role, content, meta = {}) {
         header = '<div class="message-header">&#128100; Voc&ecirc;</div>';
     }
 
-    div.innerHTML = `${header}<div class="message-content">${content}</div>`;
+    div.innerHTML = `${header}<div class="message-content">${renderMarkdown(content)}</div>`;
     chatContainer.appendChild(div);
+    renderMermaidBlocks(div);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -209,6 +210,13 @@ document.querySelectorAll('.cmd-btn').forEach(btn => {
 });
 
 document.getElementById('end-session').addEventListener('click', () => sendMessage('/sair'));
+
+// Render initial content as Markdown
+const initialEl = document.getElementById('initial-content');
+if (initialEl) {
+    initialEl.innerHTML = renderMarkdown({{ initial_content | tojson }});
+    renderMermaidBlocks(initialEl);
+}
 
 // Scroll to bottom on load
 chatContainer.scrollTop = chatContainer.scrollHeight;

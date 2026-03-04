@@ -40,12 +40,13 @@ class SessionManager:
     """Gerencia sessão conversacional com suporte a comandos e histórico."""
 
     def __init__(self, profile: dict, adapter: LLMAdapter, engine: PromptEngine,
-                 cache: CacheManager, db: Database):
+                 cache: CacheManager, db: Database, output_format: str = "ascii"):
         self.profile = profile
         self.adapter = adapter
         self.engine = engine
         self.cache = cache
         self.db = db
+        self.output_format = output_format
         self.messages: list[dict] = []
         self.session_id: str = str(uuid4())
         self.current_topic: str = ""
@@ -287,7 +288,8 @@ class SessionManager:
     def _generate_content(self, content_type: str) -> dict:
         """Gera conteúdo via PromptEngine: consulta cache, se miss chama API."""
         system, user = self.engine.build_prompt(
-            self.profile, self.current_topic, content_type, DEFAULT_PROMPT_VERSION
+            self.profile, self.current_topic, content_type, DEFAULT_PROMPT_VERSION,
+            output_format=self.output_format
         )
 
         messages = [{"role": "user", "content": user}]

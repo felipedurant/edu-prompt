@@ -206,7 +206,6 @@ th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
     padding: 0.75rem 1rem;
     margin-bottom: 0.75rem;
     border-radius: var(--radius);
-    white-space: pre-wrap;
     word-wrap: break-word;
 }
 
@@ -239,12 +238,6 @@ th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
 }
 
 .message-content { font-size: 0.95rem; line-height: 1.7; }
-.message-content code {
-    background: var(--bg-input);
-    padding: 0.15rem 0.4rem;
-    border-radius: 3px;
-    font-size: 0.85rem;
-}
 
 /* ─── Commands Bar ────────────────────────────────── */
 .commands-bar {
@@ -335,13 +328,96 @@ th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
     padding: 1rem;
     font-size: 0.9rem;
     line-height: 1.7;
-    white-space: pre-wrap;
     word-wrap: break-word;
     max-height: 400px;
     overflow-y: auto;
 }
 
 .stats-card {
+    text-align: center;
+}
+
+/* ─── Markdown Rendering ─────────────────────────── */
+.message-content h1, .message-content h2, .message-content h3,
+.card-body h1, .card-body h2, .card-body h3 {
+    margin: 0.5em 0 0.3em;
+    font-size: 1.1em;
+    color: var(--accent);
+}
+
+.message-content h1, .card-body h1 { font-size: 1.25em; }
+
+.message-content p, .card-body p {
+    margin: 0.4em 0;
+}
+
+.message-content ul, .message-content ol,
+.card-body ul, .card-body ol {
+    padding-left: 1.5em;
+    margin: 0.3em 0;
+}
+
+.message-content li, .card-body li {
+    margin: 0.15em 0;
+}
+
+.message-content pre, .card-body pre {
+    background: var(--bg-input);
+    padding: 0.75rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0.5em 0;
+}
+
+.message-content code, .card-body code {
+    background: var(--bg-input);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.message-content pre code, .card-body pre code {
+    background: none;
+    padding: 0;
+}
+
+.message-content blockquote, .card-body blockquote {
+    border-left: 3px solid var(--accent);
+    padding-left: 0.75rem;
+    margin: 0.5em 0;
+    color: var(--text-muted);
+}
+
+.message-content table, .card-body table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.5em 0;
+}
+
+.message-content th, .message-content td,
+.card-body th, .card-body td {
+    border: 1px solid var(--border);
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+}
+
+.message-content th, .card-body th {
+    background: var(--bg-input);
+}
+
+.message-content strong, .card-body strong {
+    color: var(--primary);
+}
+
+.message-content hr, .card-body hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.75em 0;
+}
+
+.mermaid {
+    margin: 0.5em 0;
     text-align: center;
 }
 

@@ -19,6 +19,25 @@
     <footer>
         <p>EduPrompt Platform &mdash; Plataforma educacional com IA personalizada</p>
     </footer>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+        function renderMarkdown(text) {
+            return DOMPurify.sanitize(marked.parse(text || ''));
+        }
+        function renderMermaidBlocks(container) {
+            container.querySelectorAll('code.language-mermaid').forEach(function(el) {
+                var pre = el.parentElement;
+                var div = document.createElement('div');
+                div.className = 'mermaid';
+                div.textContent = el.textContent;
+                pre.replaceWith(div);
+            });
+            mermaid.run();
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

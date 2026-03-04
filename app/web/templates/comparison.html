@@ -120,6 +120,16 @@
     </div>
 </div>
 
+<script>
+document.querySelectorAll('.card-body').forEach(function(el) {
+    var raw = el.textContent.trim();
+    if (raw && !el.querySelector('.error')) {
+        el.innerHTML = renderMarkdown(raw);
+        renderMermaidBlocks(el);
+    }
+});
+</script>
+
 {% if has_judge %}
 <script>
 async function runJudge() {
