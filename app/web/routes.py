@@ -104,7 +104,7 @@ def start_session():
 
     sm = SessionManager(profile, adapter, get_engine(), get_cache(), get_db(),
                         output_format="mermaid")
-    result = sm.start_topic(topic)
+    sm.setup_topic(topic)
     _sessions[sm.session_id] = sm
 
     flask_session["session_id"] = sm.session_id
@@ -118,10 +118,31 @@ def start_session():
         topic=topic,
         model_label=model_label,
         session_id=sm.session_id,
-        initial_content=result["content"],
-        initial_source=result["source"],
         commands=COMMANDS_HELP,
     )
+
+
+@bp.route("/api/session-init", methods=["POST"])
+def api_session_init():
+    """Gera conteúdo conceitual inicial da sessão (chamado assincronamente pelo JS)."""
+    data = request.get_json()
+    session_id = data.get("session_id")
+
+    sm = _sessions.get(session_id)
+    if not sm:
+        return jsonify({"error": "Sessão não encontrada."}), 404
+
+    try:
+        result = sm.generate_initial_content()
+        return jsonify({
+            "type": "content",
+            "content": result["content"],
+            "source": result["source"],
+            "elapsed": result.get("elapsed", 0),
+            "label": "Explicação Conceitual",
+        })
+    except LLMError as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @bp.route("/api/chat", methods=["POST"])

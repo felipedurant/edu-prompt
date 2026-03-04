@@ -5,20 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}EduPrompt Platform{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('main.static', filename='style.css') }}">
-    {% block head %}{% endblock %}
-</head>
-<body>
-    <header>
-        <nav>
-            <a href="{{ url_for('main.home') }}" class="logo">&#127891; EduPrompt Platform</a>
-        </nav>
-    </header>
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-    <footer>
-        <p>EduPrompt Platform &mdash; Plataforma educacional com IA personalizada</p>
-    </footer>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
@@ -38,6 +24,20 @@
             mermaid.run();
         }
     </script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="{{ url_for('main.home') }}" class="logo">&#127891; EduPrompt Platform</a>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <p>EduPrompt Platform &mdash; Plataforma educacional com IA personalizada</p>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -13,13 +13,14 @@
 
     <!-- Chat area -->
     <div class="chat-container" id="chat-container">
-        <div class="message assistant">
-            <div class="message-header">&#128218; Explica&ccedil;&atilde;o Conceitual
-                <span class="source-badge {% if initial_source == 'cache' %}badge-yellow{% else %}badge-green{% endif %}">
-                    {% if initial_source == 'cache' %}&#9889; Cache{% else %}&#127760; API{% endif %}
-                </span>
+        <div class="message assistant" id="initial-msg">
+            <div class="message-header" id="initial-header">&#128218; Explica&ccedil;&atilde;o Conceitual</div>
+            <div class="message-content" id="initial-content">
+                <div class="card-placeholder">
+                    <div class="placeholder-spinner"></div>
+                    <span class="text-muted">Gerando explica&ccedil;&atilde;o...</span>
+                </div>
             </div>
-            <div class="message-content" id="initial-content"></div>
         </div>
     </div>
 
@@ -211,12 +212,37 @@ document.querySelectorAll('.cmd-btn').forEach(btn => {
 
 document.getElementById('end-session').addEventListener('click', () => sendMessage('/sair'));
 
-// Render initial content as Markdown
-const initialEl = document.getElementById('initial-content');
-if (initialEl) {
-    initialEl.innerHTML = renderMarkdown({{ initial_content | tojson }});
-    renderMermaidBlocks(initialEl);
+// Auto-fetch initial content
+async function loadInitialContent() {
+    try {
+        const resp = await fetch('/api/session-init', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({session_id: SESSION_ID}),
+        });
+        const data = await resp.json();
+        if (data.error) {
+            document.getElementById('initial-content').innerHTML =
+                '<p class="error">&#9888;&#65039; ' + data.error + '</p>';
+            return;
+        }
+        var headerEl = document.getElementById('initial-header');
+        if (data.source === 'cache') {
+            headerEl.innerHTML = '&#128218; Explica\u00e7\u00e3o Conceitual <span class="source-badge badge-yellow">&#9889; Cache</span>';
+        } else {
+            var elapsed = data.elapsed ? ' (' + data.elapsed + 's)' : '';
+            headerEl.innerHTML = '&#128218; Explica\u00e7\u00e3o Conceitual <span class="source-badge badge-green">&#127760; API' + elapsed + '</span>';
+        }
+        var contentEl = document.getElementById('initial-content');
+        contentEl.innerHTML = renderMarkdown(data.content);
+        renderMermaidBlocks(contentEl);
+    } catch (e) {
+        document.getElementById('initial-content').innerHTML =
+            '<p class="error">&#9888;&#65039; Erro de conex\u00e3o.</p>';
+    }
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
+loadInitialContent();
 
 // Scroll to bottom on load
 chatContainer.scrollTop = chatContainer.scrollHeight;

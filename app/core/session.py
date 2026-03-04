@@ -54,13 +54,8 @@ class SessionManager:
         self.system_prompt: str = ""
         self._quiz_pending: str | None = None  # pergunta de quiz aguardando resposta
 
-    def start_topic(self, topic: str) -> dict:
-        """
-        Inicia tópico: sanitiza, gera explicação conceitual, retorna.
-
-        Returns:
-            Dict com 'content', 'source' ('api'|'cache'), 'elapsed'.
-        """
+    def setup_topic(self, topic: str):
+        """Configura tópico sem gerar conteúdo (para loading assíncrono na web)."""
         topic = self.engine.sanitize_topic(topic)
         self.current_topic = topic
         self.generated_types = {}
@@ -84,10 +79,20 @@ class SessionManager:
             mode="conversation",
         )
 
-        # Gera explicação conceitual como ponto de partida
+    def start_topic(self, topic: str) -> dict:
+        """
+        Inicia tópico: sanitiza, configura e gera explicação conceitual.
+
+        Returns:
+            Dict com 'content', 'source' ('api'|'cache'), 'elapsed'.
+        """
+        self.setup_topic(topic)
+        return self.generate_initial_content()
+
+    def generate_initial_content(self) -> dict:
+        """Gera explicação conceitual inicial (chamado assincronamente pela web)."""
         result = self._generate_content("conceptual")
         self.generated_types["conceptual"] = result["content"]
-
         return result
 
     def send_message(self, user_message: str) -> dict:
