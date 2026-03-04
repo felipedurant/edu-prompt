@@ -23,6 +23,7 @@ class GroqAdapter(LLMAdapter):
         self._client = OpenAI(
             api_key=api_key,
             base_url="https://api.groq.com/openai/v1",
+            timeout=90.0,
         )
 
     def generate(self, messages: list[dict], system_prompt: str = "",

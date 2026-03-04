@@ -5,6 +5,7 @@ import logging
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError, ClientError, ServerError
+from google.genai.types import HttpOptions
 
 from app.config import GEMINI_API_KEY, GEMINI_FLASH_MODEL
 from app.adapters.base import LLMAdapter
@@ -23,7 +24,10 @@ class GeminiAdapter(LLMAdapter):
 
     def __init__(self, model: str | None = None, api_key: str | None = None):
         self._model_name = model or GEMINI_FLASH_MODEL
-        self._client = genai.Client(api_key=api_key or GEMINI_API_KEY)
+        self._client = genai.Client(
+            api_key=api_key or GEMINI_API_KEY,
+            http_options=HttpOptions(timeout=90_000),
+        )
 
     def generate(self, messages: list[dict], system_prompt: str = "",
                  temperature: float = 0.7) -> str:

@@ -310,6 +310,9 @@ def compare_models_page():
     if not profile_id or not topic or len(model_keys) < 2:
         return redirect(url_for("main.home"))
 
+    if len(model_keys) > 3:
+        model_keys = model_keys[:3]
+
     profile = get_profile_by_id(profile_id)
     if not profile:
         return redirect(url_for("main.home"))

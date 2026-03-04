@@ -86,7 +86,7 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
             task = future_to_key[future]
             key = task["key"]
             try:
-                result = future.result(timeout=60)
+                result = future.result(timeout=100)
                 results[key] = result
                 # Salva no DB
                 db.add_message(
@@ -201,7 +201,7 @@ def compare_models(model_keys: list[str], profile: dict, topic: str,
             task = future_to_key[future]
             key = task["key"]
             try:
-                result = future.result(timeout=60)
+                result = future.result(timeout=100)
                 results[key] = result
                 db.add_message(
                     session_id, "assistant", result["content"],

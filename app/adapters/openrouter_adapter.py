@@ -23,6 +23,7 @@ class OpenRouterAdapter(LLMAdapter):
         self._client = OpenAI(
             api_key=api_key,
             base_url="https://openrouter.ai/api/v1",
+            timeout=90.0,
         )
 
     def generate(self, messages: list[dict], system_prompt: str = "",
