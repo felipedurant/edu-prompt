@@ -49,12 +49,6 @@ MODEL_REGISTRY = {
         "label": "GPT-OSS 120B (Groq)",
         "api_key_env": "GROQ_API_KEY",
     },
-    "deepseek-r1-70b": {
-        "provider": "groq",
-        "model_id": "deepseek-r1-distill-llama-70b",
-        "label": "DeepSeek R1 70B (Groq)",
-        "api_key_env": "GROQ_API_KEY",
-    },
     "qwen3-32b": {
         "provider": "groq",
         "model_id": "qwen/qwen3-32b",
@@ -77,12 +71,6 @@ MODEL_REGISTRY = {
         "provider": "openrouter",
         "model_id": "deepseek/deepseek-v3.2",
         "label": "DeepSeek V3.2 (OpenRouter)",
-        "api_key_env": "OPENROUTER_API_KEY",
-    },
-    "mistral-small-3.1": {
-        "provider": "openrouter",
-        "model_id": "mistralai/mistral-small-3.1-24b-instruct:free",
-        "label": "Mistral Small 3.1 (OpenRouter)",
         "api_key_env": "OPENROUTER_API_KEY",
     },
 }
