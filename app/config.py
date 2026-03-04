@@ -19,7 +19,9 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 # ─── Modelos ─────────────────────────────────────────────
 GEMINI_FLASH_MODEL = "gemini-2.5-flash"
-GEMINI_PRO_MODEL = "gemini-2.5-pro"       # exclusivo para judge
+JUDGE_MODEL = "deepseek/deepseek-v3.2"    # modelo usado pelo LLM-as-judge (OpenRouter)
+JUDGE_PROVIDER = "openrouter"
+JUDGE_API_KEY_ENV = "OPENROUTER_API_KEY"
 
 # ─── Registro de modelos ──────────────────────────────
 MODEL_REGISTRY = {
@@ -27,6 +29,12 @@ MODEL_REGISTRY = {
         "provider": "gemini",
         "model_id": "gemini-2.5-flash",
         "label": "Gemini 2.5 Flash (Google)",
+        "api_key_env": "GEMINI_API_KEY",
+    },
+    "gemini-3-flash": {
+        "provider": "gemini",
+        "model_id": "gemini-3-flash-preview",
+        "label": "Gemini 3 Flash Preview (Google)",
         "api_key_env": "GEMINI_API_KEY",
     },
     "llama4-scout": {

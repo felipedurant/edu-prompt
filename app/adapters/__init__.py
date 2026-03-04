@@ -2,7 +2,7 @@
 
 import os
 
-from app.config import GEMINI_API_KEY, GEMINI_PRO_MODEL, MODEL_REGISTRY
+from app.config import JUDGE_MODEL, JUDGE_PROVIDER, JUDGE_API_KEY_ENV, MODEL_REGISTRY
 from app.adapters.base import LLMAdapter
 from app.adapters.gemini_adapter import GeminiAdapter
 from app.adapters.groq_adapter import GroqAdapter
@@ -63,10 +63,20 @@ def get_adapter(model_key: str) -> LLMAdapter:
 
 
 def get_judge_adapter() -> LLMAdapter:
-    """Retorna adapter do Gemini 2.5 Pro (uso exclusivo como judge)."""
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY necessária para o LLM-as-judge.")
-    return GeminiAdapter(model=GEMINI_PRO_MODEL)
+    """Retorna adapter do modelo usado como LLM-as-judge."""
+    import os
+    api_key = os.getenv(JUDGE_API_KEY_ENV)
+    if not api_key:
+        raise ValueError(f"{JUDGE_API_KEY_ENV} necessária para o LLM-as-judge.")
+
+    if JUDGE_PROVIDER == "gemini":
+        return GeminiAdapter(model=JUDGE_MODEL, api_key=api_key)
+    elif JUDGE_PROVIDER == "groq":
+        return GroqAdapter(model=JUDGE_MODEL, api_key=api_key)
+    elif JUDGE_PROVIDER == "openrouter":
+        return OpenRouterAdapter(model=JUDGE_MODEL, api_key=api_key)
+    else:
+        raise ValueError(f"Provider do judge desconhecido: {JUDGE_PROVIDER}")
 
 
 def list_available() -> list[str]:

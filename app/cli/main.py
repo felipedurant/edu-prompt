@@ -1,6 +1,7 @@
 """CLI com Typer + Rich — Interface principal da plataforma EduPrompt."""
 
 import logging
+import os
 import sys
 
 import typer
@@ -13,8 +14,9 @@ from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.text import Text
 
-from app.config import LOG_LEVEL, LOG_FORMAT, VALID_LEVELS, VALID_STYLES, CONTENT_TYPES, MODEL_REGISTRY
+from app.config import LOG_LEVEL, LOG_FORMAT, VALID_LEVELS, VALID_STYLES, CONTENT_TYPES, MODEL_REGISTRY, JUDGE_API_KEY_ENV
 from app.adapters import get_adapter, list_available, LLMError
+from app.core.evaluator import ContentEvaluator
 from app.core.profiles import load_profiles, create_profile, get_profile_by_index
 from app.core.onboarding import (
     LEARNING_STYLES,
@@ -39,8 +41,24 @@ from app.core.export import (
 from app.storage.database import Database
 from app.storage.cache import CacheManager
 
-# Setup logging
-logging.basicConfig(level=LOG_LEVEL, format=LOG_FORMAT)
+# Setup logging — logs vão para arquivo para não poluir o terminal
+_log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data", "eduprompt.log")
+os.makedirs(os.path.dirname(_log_file), exist_ok=True)
+_file_handler = logging.FileHandler(_log_file, encoding="utf-8")
+_file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+logging.root.addHandler(_file_handler)
+logging.root.setLevel(LOG_LEVEL)
+
+# Silenciar logs de bibliotecas no console (httpx, openai, etc.)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+# Remover handlers de console que possam existir
+for h in logging.root.handlers[:]:
+    if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler):
+        logging.root.removeHandler(h)
+
 logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="EduPrompt Platform — Plataforma educacional com IA personalizada")
@@ -127,7 +145,7 @@ def select_profile() -> dict | None:
 
     while True:
         try:
-            choice = IntPrompt.ask("Selecione o perfil", default=1)
+            choice = IntPrompt.ask("[bold cyan]Perfil[/bold cyan]")
             profile = get_profile_by_index(choice - 1)
             if profile:
                 return profile
@@ -143,15 +161,21 @@ def select_model() -> str | None:
         console.print("[red]Nenhum modelo configurado. Verifique seu .env[/red]")
         return None
 
-    console.print("Selecione o modelo:")
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column("#", style="bold cyan", width=4, justify="right")
+    table.add_column("Modelo")
+    table.add_column("Provedor", style="dim")
+
     mapping = {}
     for i, key in enumerate(available):
-        label = MODEL_REGISTRY[key]["label"]
-        console.print(f"  [{i+1}] {label}")
+        entry = MODEL_REGISTRY[key]
+        table.add_row(str(i + 1), entry["label"], entry["provider"].capitalize())
         mapping[str(i + 1)] = key
 
+    console.print(Panel(table, title="\U0001f916 Selecione o modelo", border_style="cyan"))
+
     while True:
-        choice = Prompt.ask("Escolha", default="1")
+        choice = Prompt.ask("[bold cyan]Modelo[/bold cyan]")
         if choice in mapping:
             return mapping[choice]
         console.print("[red]Op\u00e7\u00e3o inv\u00e1lida.[/red]")
@@ -325,7 +349,7 @@ def cmd_session():
     if not model_key:
         return
 
-    topic = Prompt.ask("Qual o t\u00f3pico de estudo?")
+    topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico de estudo?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
         return
@@ -349,13 +373,19 @@ def cmd_session():
     _display_content("Explica\u00e7\u00e3o Conceitual", topic, result)
 
     console.print(
-        '\n\U0001f4ac [bold]Sess\u00e3o ativa[/bold] \u2014 digite sua mensagem ou "/" para ver comandos\n'
+        f'\n\U0001f4ac [bold]Sess\u00e3o ativa[/bold] \u2014 {profile["nome"]} \u2022 {topic}\n'
     )
+    _print_command_hint()
 
     # Loop da sessão
     while True:
         try:
-            user_input = Prompt.ask("[bold cyan]Voc\u00ea[/bold cyan]")
+            if session.has_quiz_pending:
+                prompt_label = "[bold magenta]Sua resposta[/bold magenta]"
+            else:
+                topic_short = session.current_topic[:25] + ("..." if len(session.current_topic) > 25 else "")
+                prompt_label = f"[bold cyan]Voc\u00ea[/bold cyan] [dim]({topic_short})[/dim]"
+            user_input = Prompt.ask(prompt_label)
         except (KeyboardInterrupt, EOFError):
             session.end()
             console.print("\n[yellow]Sess\u00e3o encerrada.[/yellow]")
@@ -363,10 +393,6 @@ def cmd_session():
 
         user_input = user_input.strip()
         if not user_input:
-            continue
-
-        # "/" sozinho — lista comandos
-        if user_input == "/":
             _show_commands()
             continue
 
@@ -393,6 +419,7 @@ def cmd_session():
                     continue
 
             _display_content("Explica\u00e7\u00e3o Conceitual", new_topic, result)
+            _print_command_hint()
             continue
 
         # /quiz_me
@@ -403,6 +430,7 @@ def cmd_session():
         # Comandos de conteúdo (/exemplos, /perguntas, /resumo)
         if user_input in COMMANDS_HELP and user_input not in ("/quiz_me", "/novo_topico", "/sair"):
             _handle_content_command(session, user_input)
+            _print_command_hint()
             continue
 
         # Resposta ao quiz pendente
@@ -417,6 +445,7 @@ def cmd_session():
             console.print(Markdown(result["content"]))
             show_source_indicator(result["source"], result["elapsed"])
             console.print()
+            _print_command_hint()
             continue
 
         # Conversa livre
@@ -431,14 +460,37 @@ def cmd_session():
         console.print(Markdown(result["content"]))
         show_source_indicator(result["source"], result["elapsed"])
         console.print()
+        _print_command_hint()
+
+
+def _print_command_hint():
+    """Imprime linha compacta com comandos disponíveis."""
+    hint = Text()
+    hint.append("  [Enter = detalhar comandos]", style="dim")
+    hint.append("  Comandos: ", style="dim")
+    commands = ["/exemplos", "/perguntas", "/resumo", "/quiz_me", "/novo_topico", "/sair"]
+    for i, cmd in enumerate(commands):
+        if i > 0:
+            hint.append("  ", style="dim")
+        hint.append(cmd, style="dim cyan")
+    console.print(hint)
 
 
 def _show_commands():
-    """Exibe lista de comandos disponíveis."""
+    """Exibe lista de comandos disponíveis com descrições."""
+    detailed_commands = {
+        "Enter": "Ver esta lista de comandos",
+        "/exemplos": "Gera exemplos práticos do tópico adaptados ao seu perfil",
+        "/perguntas": "Gera perguntas de reflexão para testar compreensão",
+        "/resumo": "Gera mapa mental ou diagrama ASCII do tópico",
+        "/quiz_me": "A IA faz uma pergunta e avalia sua resposta",
+        "/novo_topico": "Troca o tópico (mantém perfil e API)",
+        "/sair": "Encerra e salva a sessão",
+    }
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Comando", style="bold cyan")
     table.add_column("Descri\u00e7\u00e3o")
-    for cmd, desc in COMMANDS_HELP.items():
+    for cmd, desc in detailed_commands.items():
         table.add_row(cmd, desc)
     console.print(Panel(table, title="Comandos dispon\u00edveis", border_style="cyan"))
 
@@ -524,7 +576,7 @@ def cmd_compare_versions():
     if not model_key:
         return
 
-    topic = Prompt.ask("Qual o t\u00f3pico?")
+    topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
         return
@@ -574,9 +626,83 @@ def cmd_compare_versions():
         f"Tempo total: {result['total_elapsed']}s"
     )
 
+    # LLM-as-judge
+    v1_outputs = {}
+    v2_outputs = {}
+    for ct, info in result["results"].items():
+        if info.get("v1") and info.get("v2"):
+            v1_outputs[ct] = info["v1"]["content"]
+            v2_outputs[ct] = info["v2"]["content"]
+
+    if v1_outputs and v2_outputs:
+        if not os.getenv(JUDGE_API_KEY_ENV):
+            console.print(f"\n[dim]LLM-as-judge indispon\u00edvel: {JUDGE_API_KEY_ENV} n\u00e3o configurada.[/dim]")
+        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?", default=False):
+            with console.status("\u23f3 Avaliando com LLM-as-judge..."):
+                try:
+                    evaluator = ContentEvaluator()
+                    eval_result = evaluator.evaluate_versions(
+                        v1_outputs, v2_outputs, profile, topic
+                    )
+                except Exception as e:
+                    console.print(f"[red]\u26a0\ufe0f Erro no judge: {e}[/red]")
+                    eval_result = None
+            if eval_result:
+                _display_judge_versions(eval_result)
+
     # Oferecer exportação
     if Confirm.ask("\nDeseja exportar os resultados?", default=False):
         _export_comparison(result)
+
+
+def _display_judge_versions(eval_result: dict):
+    """Exibe resultados do LLM-as-judge para comparação v1 vs v2."""
+    criteria_labels = {
+        "adequacao_nivel": "Adequa\u00e7\u00e3o N\u00edvel",
+        "clareza": "Clareza",
+        "adequacao_estilo": "Adequa\u00e7\u00e3o Estilo",
+        "engajamento": "Engajamento",
+    }
+
+    console.print()
+    console.print(Panel(
+        f"[bold]Avaliado por:[/bold] {eval_result.get('evaluator_model', 'DeepSeek V3.2')}",
+        title="\u2696\ufe0f Avalia\u00e7\u00e3o LLM-as-Judge",
+        border_style="magenta",
+    ))
+
+    for ct, ev in eval_result["evaluations"].items():
+        if ev.get("error"):
+            console.print(f"\n[red]\u26a0\ufe0f {ev['label']}: {ev['error']}[/red]")
+            continue
+
+        table = Table(title=ev["label"], show_header=True, header_style="bold")
+        table.add_column("Crit\u00e9rio", style="dim")
+        table.add_column("v1 (B\u00e1sico)", justify="center", style="red")
+        table.add_column("v2 (Otimizado)", justify="center", style="green")
+
+        for key, label in criteria_labels.items():
+            v1_score = ev["v1_scores"].get(key, "-")
+            v2_score = ev["v2_scores"].get(key, "-")
+            table.add_row(label, str(v1_score), str(v2_score))
+
+        console.print(table)
+
+        winner = ev.get("vencedor", "")
+        winner_style = "green" if winner == "v2" else "red"
+        console.print(f"  Vencedor: [{winner_style}]{winner.upper()}[/{winner_style}]")
+        if ev.get("justificativa"):
+            console.print(f"  [dim]{ev['justificativa']}[/dim]")
+
+    # Resumo geral
+    winner = eval_result.get("overall_winner", "")
+    winner_style = "green" if winner == "v2" else "red"
+    console.print(
+        f"\n[bold]Resultado Geral:[/bold] "
+        f"v1 m\u00e9dia {eval_result['overall_v1_avg']} \u00d7 "
+        f"v2 m\u00e9dia {eval_result['overall_v2_avg']} \u2192 "
+        f"[{winner_style}]\U0001f3c6 {winner.upper()} VENCEU[/{winner_style}]"
+    )
 
 
 def _display_version_comparison(data: dict):
@@ -630,7 +756,7 @@ def cmd_compare_models():
     if not profile:
         return
 
-    topic = Prompt.ask("Qual o t\u00f3pico?")
+    topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
         return
@@ -656,23 +782,24 @@ def cmd_compare_models():
 
     for provider, keys in providers_models.items():
         display_name = provider_display.get(provider, provider)
-        console.print(f"\n--- {display_name} ---")
 
         if len(keys) == 1:
             label = MODEL_REGISTRY[keys[0]]["label"]
-            console.print(f"  [1] {label}")
             selected_keys.append(keys[0])
-            console.print(f"  [dim]Selecionado automaticamente[/dim]")
+            console.print(f"  [dim]{display_name}:[/dim] {label} [dim](auto)[/dim]")
             continue
 
+        table = Table(show_header=False, box=None, padding=(0, 1))
+        table.add_column("#", style="bold cyan", width=3, justify="right")
+        table.add_column("Modelo")
         mapping = {}
         for i, key in enumerate(keys):
-            label = MODEL_REGISTRY[key]["label"]
-            console.print(f"  [{i+1}] {label}")
+            table.add_row(str(i + 1), MODEL_REGISTRY[key]["label"])
             mapping[str(i + 1)] = key
+        console.print(Panel(table, title=f"{display_name}", border_style="dim"))
 
         while True:
-            choice = Prompt.ask("Escolha", default="1")
+            choice = Prompt.ask(f"[bold cyan]{display_name}[/bold cyan]")
             if choice in mapping:
                 selected_keys.append(mapping[choice])
                 break
@@ -716,8 +843,86 @@ def cmd_compare_models():
         f"({stats['hit_rate']}% economia) | Tempo total: {result['total_elapsed']}s"
     )
 
+    # LLM-as-judge
+    api_outputs = {}
+    for ct, info in result["results"].items():
+        api_outputs[ct] = {}
+        for model_key, mdata in info["models"].items():
+            if mdata.get("result"):
+                api_outputs[ct][model_key] = mdata["result"]["content"]
+
+    if any(len(v) >= 2 for v in api_outputs.values()):
+        if not os.getenv(JUDGE_API_KEY_ENV):
+            console.print(f"\n[dim]LLM-as-judge indispon\u00edvel: {JUDGE_API_KEY_ENV} n\u00e3o configurada.[/dim]")
+        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?", default=False):
+            with console.status("\u23f3 Avaliando com LLM-as-judge..."):
+                try:
+                    evaluator = ContentEvaluator()
+                    eval_result = evaluator.evaluate_apis(api_outputs, profile, topic)
+                except Exception as e:
+                    console.print(f"[red]\u26a0\ufe0f Erro no judge: {e}[/red]")
+                    eval_result = None
+            if eval_result:
+                _display_judge_apis(eval_result)
+
     if Confirm.ask("\nDeseja exportar os resultados?", default=False):
         _export_comparison(result)
+
+
+def _display_judge_apis(eval_result: dict):
+    """Exibe resultados do LLM-as-judge para comparação multi-modelo."""
+    criteria_labels = {
+        "adequacao_nivel": "Adequa\u00e7\u00e3o N\u00edvel",
+        "clareza": "Clareza",
+        "adequacao_estilo": "Adequa\u00e7\u00e3o Estilo",
+        "engajamento": "Engajamento",
+    }
+
+    console.print()
+    console.print(Panel(
+        f"[bold]Avaliado por:[/bold] {eval_result.get('evaluator_model', 'DeepSeek V3.2')}",
+        title="\u2696\ufe0f Avalia\u00e7\u00e3o LLM-as-Judge \u2014 Multi-Modelo",
+        border_style="magenta",
+    ))
+
+    for ct, ev in eval_result["evaluations"].items():
+        if ev.get("error"):
+            console.print(f"\n[red]\u26a0\ufe0f {ev['label']}: {ev['error']}[/red]")
+            continue
+
+        scores = ev.get("scores", {})
+        model_keys = list(scores.keys())
+
+        table = Table(title=ev["label"], show_header=True, header_style="bold")
+        table.add_column("Crit\u00e9rio", style="dim")
+        for mk in model_keys:
+            label = MODEL_REGISTRY.get(mk, {}).get("label", mk)
+            table.add_column(label, justify="center")
+
+        for key, label in criteria_labels.items():
+            row = [label]
+            for mk in model_keys:
+                row.append(str(scores[mk].get(key, "-")))
+            table.add_row(*row)
+
+        console.print(table)
+
+        vencedor_mk = ev.get("vencedor", "")
+        vencedor_label = MODEL_REGISTRY.get(vencedor_mk, {}).get("label", vencedor_mk)
+        console.print(f"  Vencedor: [green]{vencedor_label}[/green]")
+        if ev.get("justificativa"):
+            console.print(f"  [dim]{ev['justificativa']}[/dim]")
+
+    # Resumo geral
+    overall = eval_result.get("overall_winner", "")
+    overall_label = MODEL_REGISTRY.get(overall, {}).get("label", overall)
+    averages = eval_result.get("model_averages", {})
+    avg_text = " | ".join(
+        f"{MODEL_REGISTRY.get(mk, {}).get('label', mk)}: {v}"
+        for mk, v in averages.items()
+    )
+    console.print(f"\n[bold]Resultado Geral:[/bold] {avg_text}")
+    console.print(f"[green bold]\U0001f3c6 VENCEDOR GERAL: {overall_label}[/green bold]")
 
 
 def _display_model_comparison(data: dict):
@@ -917,19 +1122,23 @@ def main_menu():
     while True:
         console.print()
         show_header()
-        console.print()
-        console.print("1. \U0001f4cb  Listar perfis de alunos")
-        console.print("2. \u2795  Criar novo perfil")
-        console.print("3. \U0001f4ac  Iniciar sess\u00e3o de aprendizado")
-        console.print("4. \U0001f504  Comparar vers\u00f5es de prompt (v1 vs v2)")
-        console.print("5. \U0001f4ca  Comparar Modelos")
-        console.print("6. \U0001f4dc  Ver hist\u00f3rico de sess\u00f5es")
-        console.print("7. \U0001f4c1  Exportar resultados (JSON / Markdown)")
-        console.print("8. \U0001f6aa  Sair")
+
+        menu = Table(show_header=False, box=None, padding=(0, 1))
+        menu.add_column("N", style="bold cyan", width=3, justify="right")
+        menu.add_column("Op\u00e7\u00e3o")
+        menu.add_row("1", "\U0001f4cb  Listar perfis de alunos")
+        menu.add_row("2", "\u2795  Criar novo perfil")
+        menu.add_row("3", "\U0001f4ac  Iniciar sess\u00e3o de aprendizado")
+        menu.add_row("4", "\U0001f504  Comparar vers\u00f5es de prompt (v1 vs v2)")
+        menu.add_row("5", "\U0001f4ca  Comparar Modelos")
+        menu.add_row("6", "\U0001f4dc  Ver hist\u00f3rico de sess\u00f5es")
+        menu.add_row("7", "\U0001f4c1  Exportar resultados (JSON / Markdown)")
+        menu.add_row("8", "\U0001f6aa  Sair")
+        console.print(menu)
         console.print()
 
         try:
-            choice = Prompt.ask("Escolha", default="3")
+            choice = Prompt.ask("[bold cyan]Escolha uma op\u00e7\u00e3o[/bold cyan]")
         except (KeyboardInterrupt, EOFError):
             choice = "8"
 

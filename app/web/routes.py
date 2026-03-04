@@ -2,6 +2,8 @@
 
 import json
 import logging
+import os
+from uuid import uuid4
 
 from flask import (
     Blueprint,
@@ -14,7 +16,7 @@ from flask import (
 )
 
 from app.adapters import get_adapter, list_available, LLMError
-from app.config import MODEL_REGISTRY, CONTENT_TYPES
+from app.config import MODEL_REGISTRY, CONTENT_TYPES, JUDGE_API_KEY_ENV
 from app.core.profiles import load_profiles, create_profile, get_profile_by_id
 from app.core.onboarding import LEARNING_STYLES, get_quiz_questions, calculate_style
 from app.core.prompt_engine import PromptEngine
@@ -38,6 +40,7 @@ _db = None
 _cache = None
 _engine = None
 _sessions: dict[str, SessionManager] = {}
+_last_comparisons: dict[str, dict] = {}
 
 
 def get_db() -> Database:
@@ -266,6 +269,24 @@ def compare_versions_page():
     result = compare_versions(adapter, profile, topic, get_engine(), cache, get_db())
     model_label = MODEL_REGISTRY.get(model_key, {}).get("label", model_key)
 
+    # Salvar dados para o judge
+    v1_outputs = {}
+    v2_outputs = {}
+    for ct, info in result["results"].items():
+        if info.get("v1") and info.get("v2"):
+            v1_outputs[ct] = info["v1"]["content"]
+            v2_outputs[ct] = info["v2"]["content"]
+
+    cid = str(uuid4())
+    _last_comparisons[cid] = {
+        "mode": "versions",
+        "topic": topic,
+        "profile_id": profile_id,
+        "v1_outputs": v1_outputs,
+        "v2_outputs": v2_outputs,
+    }
+    flask_session["last_comparison_id"] = cid
+
     return render_template(
         "comparison.html",
         mode="versions",
@@ -275,6 +296,7 @@ def compare_versions_page():
         result=result,
         content_types=CONTENT_TYPES,
         labels=CONTENT_TYPE_LABELS,
+        has_judge=bool(os.getenv(JUDGE_API_KEY_ENV)),
     )
 
 
@@ -297,6 +319,23 @@ def compare_models_page():
 
     result = compare_models(model_keys, profile, topic, get_engine(), cache, get_db())
 
+    # Salvar dados para o judge
+    api_outputs = {}
+    for ct, info in result["results"].items():
+        api_outputs[ct] = {}
+        for mk, mdata in info["models"].items():
+            if mdata.get("result"):
+                api_outputs[ct][mk] = mdata["result"]["content"]
+
+    cid = str(uuid4())
+    _last_comparisons[cid] = {
+        "mode": "models",
+        "topic": topic,
+        "profile_id": profile_id,
+        "api_outputs": api_outputs,
+    }
+    flask_session["last_comparison_id"] = cid
+
     return render_template(
         "comparison.html",
         mode="models",
@@ -307,7 +346,51 @@ def compare_models_page():
         content_types=CONTENT_TYPES,
         labels=CONTENT_TYPE_LABELS,
         model_registry=MODEL_REGISTRY,
+        has_judge=bool(os.getenv(JUDGE_API_KEY_ENV)),
     )
+
+
+# ─── LLM-as-Judge ──────────────────────────────────────
+
+
+@bp.route("/api/evaluate", methods=["POST"])
+def api_evaluate():
+    """Executa avaliação LLM-as-judge sobre a última comparação."""
+    cid = flask_session.get("last_comparison_id")
+    comparison = _last_comparisons.get(cid) if cid else None
+
+    if not comparison:
+        return jsonify({"error": "Nenhuma comparação disponível."}), 400
+
+    profile = get_profile_by_id(comparison["profile_id"])
+    if not profile:
+        return jsonify({"error": "Perfil não encontrado."}), 400
+
+    if not os.getenv(JUDGE_API_KEY_ENV):
+        return jsonify({"error": f"{JUDGE_API_KEY_ENV} não configurada."}), 400
+
+    try:
+        evaluator = ContentEvaluator()
+        if comparison["mode"] == "versions":
+            eval_result = evaluator.evaluate_versions(
+                comparison["v1_outputs"],
+                comparison["v2_outputs"],
+                profile,
+                comparison["topic"],
+            )
+        else:
+            eval_result = evaluator.evaluate_apis(
+                comparison["api_outputs"],
+                profile,
+                comparison["topic"],
+            )
+    except LLMError as e:
+        logger.error("Erro no judge: %s", e)
+        return jsonify({"error": str(e)}), 502
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return jsonify({"evaluation": eval_result})
 
 
 # ─── Perfis ────────────────────────────────────────────

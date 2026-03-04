@@ -358,6 +358,37 @@ footer {
     border-top: 1px solid var(--border);
 }
 
+/* ─── Judge ──────────────────────────────────────── */
+.judge-section {
+    border-color: var(--secondary);
+}
+
+.judge-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0;
+}
+
+.judge-table th, .judge-table td {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.judge-table th {
+    background: var(--bg-input);
+    font-weight: 600;
+}
+
+.judge-table td:first-child {
+    text-align: left;
+    color: var(--text-muted);
+}
+
+.judge-actions {
+    border-color: var(--secondary);
+}
+
 /* ─── Responsive ──────────────────────────────────── */
 @media (max-width: 768px) {
     .actions-grid { grid-template-columns: 1fr; }
