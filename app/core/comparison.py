@@ -1,12 +1,12 @@
 """Modos de comparação: v1/v2 e multi-API com geração paralela."""
 
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from uuid import uuid4
 
 from app.config import (
-    MAX_PARALLEL_WORKERS,
     DEFAULT_PROMPT_VERSION,
     DEFAULT_TEMPERATURE,
     CONTENT_TYPES,
@@ -29,11 +29,45 @@ CONTENT_TYPE_LABELS = {
     "visual": "Resumo Visual",
 }
 
+
+def _generate_version_batch(version: str, adapter: LLMAdapter, profile: dict,
+                            topic: str, generator: ContentGenerator,
+                            db: Database, session_id: str,
+                            results: dict, errors: dict, lock: threading.Lock,
+                            completed_counter: list, total_tasks: int,
+                            progress_callback):
+    """Worker que processa todos os content_types para uma versão (v1 ou v2)."""
+    for ct in CONTENT_TYPES:
+        key = f"{ct}_{version}"
+        try:
+            result = generator.generate_single(adapter, profile, topic, ct, version)
+            with lock:
+                results[key] = result
+            db.add_message(
+                session_id, "assistant", result["content"],
+                ct, version, result["source"],
+            )
+        except LLMError as e:
+            with lock:
+                errors[key] = str(e)
+            logger.error("Falha em %s: %s", key, e)
+        except Exception as e:
+            with lock:
+                errors[key] = str(e)
+            logger.error("Erro inesperado em %s: %s", key, e)
+
+        with lock:
+            completed_counter[0] += 1
+            if progress_callback:
+                progress_callback(completed_counter[0], total_tasks, f"{ct} {version}")
+
+
 def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
                      engine: PromptEngine, cache: CacheManager, db: Database,
                      progress_callback=None) -> dict:
     """
     Compara v1 vs v2 para todos os 4 tipos de conteúdo.
+    Usa 2 threads: uma para v1, outra para v2.
 
     Args:
         progress_callback: Callable(completed, total, description) para progress bar.
@@ -57,52 +91,27 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
 
     generator = ContentGenerator(engine, cache)
     total_tasks = len(CONTENT_TYPES) * 2  # 4 tipos × 2 versões = 8
-    completed = 0
     results = {}
     errors = {}
+    lock = threading.Lock()
+    completed_counter = [0]  # mutable para compartilhar entre threads
     start_total = time.time()
 
-    # Preparar tarefas
-    tasks = []
-    for ct in CONTENT_TYPES:
+    # 2 threads: uma para v1 (4 content_types), outra para v2 (4 content_types)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = []
         for version in ("v1", "v2"):
-            tasks.append({
-                "key": f"{ct}_{version}",
-                "content_type": ct,
-                "version": version,
-            })
-
-    # Executar em paralelo
-    with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as executor:
-        future_to_key = {}
-        for task in tasks:
             future = executor.submit(
-                generator.generate_single,
-                adapter, profile, topic, task["content_type"], task["version"],
+                _generate_version_batch,
+                version, adapter, profile, topic, generator,
+                db, session_id, results, errors, lock,
+                completed_counter, total_tasks, progress_callback,
             )
-            future_to_key[future] = task
+            futures.append(future)
 
-        for future in as_completed(future_to_key):
-            task = future_to_key[future]
-            key = task["key"]
-            try:
-                result = future.result(timeout=100)
-                results[key] = result
-                # Salva no DB
-                db.add_message(
-                    session_id, "assistant", result["content"],
-                    task["content_type"], task["version"], result["source"],
-                )
-            except LLMError as e:
-                errors[key] = str(e)
-                logger.error("Falha em %s: %s", key, e)
-            except Exception as e:
-                errors[key] = str(e)
-                logger.error("Erro inesperado em %s: %s", key, e)
-
-            completed += 1
-            if progress_callback:
-                progress_callback(completed, total_tasks, f"{task['content_type']} {task['version']}")
+        # Aguardar conclusão
+        for future in as_completed(futures):
+            future.result(timeout=300)
 
     total_elapsed = round(time.time() - start_total, 1)
 
@@ -132,14 +141,50 @@ def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
     }
 
 
+def _generate_model_batch(model_key: str, adapter: LLMAdapter, profile: dict,
+                          topic: str, generator: ContentGenerator,
+                          db: Database, session_id: str,
+                          results: dict, errors: dict, lock: threading.Lock,
+                          completed_counter: list, total_tasks: int,
+                          progress_callback):
+    """Worker que processa todos os content_types para um modelo."""
+    label = MODEL_REGISTRY[model_key]["label"]
+    for ct in CONTENT_TYPES:
+        key = f"{ct}_{model_key}"
+        try:
+            result = generator.generate_single(
+                adapter, profile, topic, ct, DEFAULT_PROMPT_VERSION,
+            )
+            with lock:
+                results[key] = result
+            db.add_message(
+                session_id, "assistant", result["content"],
+                ct, DEFAULT_PROMPT_VERSION, result["source"],
+            )
+        except LLMError as e:
+            with lock:
+                errors[key] = str(e)
+            logger.error("Falha em %s: %s", key, e)
+        except Exception as e:
+            with lock:
+                errors[key] = str(e)
+            logger.error("Erro inesperado em %s: %s", key, e)
+
+        with lock:
+            completed_counter[0] += 1
+            if progress_callback:
+                progress_callback(completed_counter[0], total_tasks, f"{ct} ({label})")
+
+
 def compare_models(model_keys: list[str], profile: dict, topic: str,
                    engine: PromptEngine, cache: CacheManager, db: Database,
                    progress_callback=None) -> dict:
     """
-    Compara modelos selecionados (1 por provedor) para todos os 4 tipos (sempre v2).
+    Compara modelos selecionados para todos os 4 tipos (sempre v2).
+    Usa 1 thread por modelo — cada thread processa seus content_types sequencialmente.
 
     Args:
-        model_keys: Lista de chaves do MODEL_REGISTRY (ex: ["gemini-flash", "llama4-scout", "kimi-k2.5"]).
+        model_keys: Lista de chaves do MODEL_REGISTRY.
         progress_callback: Callable(completed, total, description) para progress bar.
 
     Returns:
@@ -161,9 +206,10 @@ def compare_models(model_keys: list[str], profile: dict, topic: str,
 
     generator = ContentGenerator(engine, cache)
     total_tasks = len(CONTENT_TYPES) * len(model_keys)
-    completed = 0
     results = {}
     errors = {}
+    lock = threading.Lock()
+    completed_counter = [0]
     start_total = time.time()
 
     # Criar adapters
@@ -175,49 +221,21 @@ def compare_models(model_keys: list[str], profile: dict, topic: str,
             logger.error("Não foi possível criar adapter para %s: %s", key, e)
             continue
 
-    # Preparar tarefas
-    tasks = []
-    for ct in CONTENT_TYPES:
+    # 1 thread por modelo — cada thread processa 4 content_types sequencialmente
+    with ThreadPoolExecutor(max_workers=len(adapters)) as executor:
+        futures = []
         for model_key, adapter in adapters.items():
-            tasks.append({
-                "key": f"{ct}_{model_key}",
-                "content_type": ct,
-                "model_key": model_key,
-                "adapter": adapter,
-            })
-
-    # Executar em paralelo
-    with ThreadPoolExecutor(max_workers=MAX_PARALLEL_WORKERS) as executor:
-        future_to_key = {}
-        for task in tasks:
             future = executor.submit(
-                generator.generate_single,
-                task["adapter"], profile, topic,
-                task["content_type"], DEFAULT_PROMPT_VERSION,
+                _generate_model_batch,
+                model_key, adapter, profile, topic, generator,
+                db, session_id, results, errors, lock,
+                completed_counter, total_tasks, progress_callback,
             )
-            future_to_key[future] = task
+            futures.append(future)
 
-        for future in as_completed(future_to_key):
-            task = future_to_key[future]
-            key = task["key"]
-            try:
-                result = future.result(timeout=100)
-                results[key] = result
-                db.add_message(
-                    session_id, "assistant", result["content"],
-                    task["content_type"], DEFAULT_PROMPT_VERSION, result["source"],
-                )
-            except LLMError as e:
-                errors[key] = str(e)
-                logger.error("Falha em %s: %s", key, e)
-            except Exception as e:
-                errors[key] = str(e)
-                logger.error("Erro inesperado em %s: %s", key, e)
-
-            completed += 1
-            if progress_callback:
-                label = MODEL_REGISTRY[task["model_key"]]["label"]
-                progress_callback(completed, total_tasks, f"{task['content_type']} ({label})")
+        # Aguardar conclusão
+        for future in as_completed(futures):
+            future.result(timeout=300)
 
     total_elapsed = round(time.time() - start_total, 1)
 

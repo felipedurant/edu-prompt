@@ -12,6 +12,7 @@ from app.adapters.base import LLMAdapter
 from app.adapters.exceptions import (
     LLMAuthError,
     LLMConnectionError,
+    LLMQuotaError,
     LLMRateLimitError,
     LLMResponseError,
 )
@@ -59,10 +60,20 @@ class GeminiAdapter(LLMAdapter):
 
         except ClientError as e:
             status = getattr(e, "status", None)
+            err_msg = str(e).lower()
             if status == 429:
+                if "quota" in err_msg or "exhausted" in err_msg:
+                    logger.error("Quota esgotada Gemini: %s", e)
+                    raise LLMQuotaError(f"Cota Gemini esgotada: {e}") from e
                 logger.error("Rate limit Gemini: %s", e)
                 raise LLMRateLimitError() from e
-            elif status in (401, 403):
+            elif status == 403:
+                if "quota" in err_msg or "exhausted" in err_msg:
+                    logger.error("Quota esgotada Gemini: %s", e)
+                    raise LLMQuotaError(f"Cota Gemini esgotada: {e}") from e
+                logger.error("Auth error Gemini: %s", e)
+                raise LLMAuthError(f"Chave Gemini inválida: {e}") from e
+            elif status == 401:
                 logger.error("Auth error Gemini: %s", e)
                 raise LLMAuthError(f"Chave Gemini inválida: {e}") from e
             logger.error("Client error Gemini: %s", e)

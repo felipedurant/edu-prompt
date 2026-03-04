@@ -8,6 +8,7 @@ from app.adapters.base import LLMAdapter
 from app.adapters.exceptions import (
     LLMAuthError,
     LLMConnectionError,
+    LLMQuotaError,
     LLMRateLimitError,
     LLMResponseError,
 )
@@ -47,6 +48,10 @@ class GroqAdapter(LLMAdapter):
             return content
 
         except RateLimitError as e:
+            err_msg = str(e).lower()
+            if "quota" in err_msg or "insufficient_quota" in err_msg:
+                logger.error("Quota esgotada Groq: %s", e)
+                raise LLMQuotaError(f"Cota Groq esgotada: {e}") from e
             logger.error("Rate limit Groq: %s", e)
             retry_after = None
             if hasattr(e, "response") and e.response is not None:
@@ -61,6 +66,10 @@ class GroqAdapter(LLMAdapter):
             logger.error("Conexão Groq: %s", e)
             raise LLMConnectionError(f"Falha de conexão Groq: {e}") from e
         except APIStatusError as e:
+            err_msg = str(e).lower()
+            if "quota" in err_msg or "insufficient_quota" in err_msg:
+                logger.error("Quota esgotada Groq: %s", e)
+                raise LLMQuotaError(f"Cota Groq esgotada: {e}") from e
             logger.error("Erro API Groq: %s", e)
             raise LLMConnectionError(f"Erro Groq: {e}") from e
         except LLMResponseError:

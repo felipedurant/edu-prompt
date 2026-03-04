@@ -20,6 +20,11 @@ class LLMRateLimitError(LLMError):
         super().__init__(msg)
 
 
+class LLMQuotaError(LLMError):
+    """Cota gratuita esgotada — não faz retry."""
+    pass
+
+
 class LLMAuthError(LLMError):
     """Chave inválida ou expirada (401/403)."""
     pass

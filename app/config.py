@@ -101,7 +101,8 @@ CACHE_ENABLED = True
 CACHE_TTL_HOURS = 24                  # expiração em horas (0 = sem expiração)
 
 # ─── Paralelismo ─────────────────────────────────────────
-MAX_PARALLEL_WORKERS = 2              # threads para geração paralela (reduzido para economizar RAM)
+# Determinado automaticamente: 1 thread por modelo (compare_models)
+# ou 2 threads (compare_versions: 1 por versão)
 
 # ─── Caminhos ────────────────────────────────────────────
 DATA_DIR = PROJECT_ROOT / "data"

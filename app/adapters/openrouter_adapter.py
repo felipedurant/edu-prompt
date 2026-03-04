@@ -8,6 +8,7 @@ from app.adapters.base import LLMAdapter
 from app.adapters.exceptions import (
     LLMAuthError,
     LLMConnectionError,
+    LLMQuotaError,
     LLMRateLimitError,
     LLMResponseError,
 )
@@ -48,6 +49,10 @@ class OpenRouterAdapter(LLMAdapter):
             return content
 
         except RateLimitError as e:
+            err_msg = str(e).lower()
+            if "quota" in err_msg or "credits" in err_msg or "insufficient" in err_msg:
+                logger.error("Quota esgotada OpenRouter: %s", e)
+                raise LLMQuotaError(f"Cota OpenRouter esgotada: {e}") from e
             logger.error("Rate limit OpenRouter: %s", e)
             retry_after = None
             if hasattr(e, "response") and e.response is not None:
@@ -62,6 +67,10 @@ class OpenRouterAdapter(LLMAdapter):
             logger.error("Conexão OpenRouter: %s", e)
             raise LLMConnectionError(f"Falha de conexão OpenRouter: {e}") from e
         except APIStatusError as e:
+            err_msg = str(e).lower()
+            if "quota" in err_msg or "credits" in err_msg or "insufficient" in err_msg:
+                logger.error("Quota esgotada OpenRouter: %s", e)
+                raise LLMQuotaError(f"Cota OpenRouter esgotada: {e}") from e
             logger.error("Erro API OpenRouter: %s", e)
             raise LLMConnectionError(f"Erro OpenRouter: {e}") from e
         except LLMResponseError:

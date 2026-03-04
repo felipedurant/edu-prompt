@@ -11,6 +11,7 @@ from app.adapters.exceptions import (
     LLMError,
     LLMConnectionError,
     LLMRateLimitError,
+    LLMQuotaError,
     LLMAuthError,
     LLMResponseError,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "LLMError",
     "LLMConnectionError",
     "LLMRateLimitError",
+    "LLMQuotaError",
     "LLMAuthError",
     "LLMResponseError",
 ]

@@ -5,7 +5,7 @@ import time
 
 from app.config import DEFAULT_PROMPT_VERSION, DEFAULT_TEMPERATURE, CONTENT_TYPES
 from app.adapters.base import LLMAdapter
-from app.adapters.exceptions import LLMResponseError
+from app.adapters.exceptions import LLMResponseError, LLMRateLimitError, LLMQuotaError
 from app.core.prompt_engine import PromptEngine
 from app.storage.cache import CacheManager
 
@@ -51,6 +51,16 @@ class ContentGenerator:
         # Chamada à API
         start = time.time()
         try:
+            content = adapter.generate(
+                messages=messages,
+                system_prompt=system,
+                temperature=DEFAULT_TEMPERATURE,
+            )
+        except LLMQuotaError:
+            raise  # Cota esgotada — propaga imediatamente, sem retry
+        except LLMRateLimitError:
+            logger.warning("Rate limit para %s/%s, retry único após 2s...", provider, content_type)
+            time.sleep(2)
             content = adapter.generate(
                 messages=messages,
                 system_prompt=system,
