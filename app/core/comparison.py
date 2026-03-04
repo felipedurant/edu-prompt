@@ -59,7 +59,8 @@ def _generate_version_batch(version: str, adapter: LLMAdapter, profile: dict,
         with lock:
             completed_counter[0] += 1
             if progress_callback:
-                progress_callback(completed_counter[0], total_tasks, f"{ct} {version}")
+                progress_callback(completed_counter[0], total_tasks, f"{ct} {version}",
+                                  key=key, result=results.get(key), error=errors.get(key))
 
 
 def compare_versions(adapter: LLMAdapter, profile: dict, topic: str,
@@ -173,7 +174,8 @@ def _generate_model_batch(model_key: str, adapter: LLMAdapter, profile: dict,
         with lock:
             completed_counter[0] += 1
             if progress_callback:
-                progress_callback(completed_counter[0], total_tasks, f"{ct} ({label})")
+                progress_callback(completed_counter[0], total_tasks, f"{ct} ({label})",
+                                  key=key, result=results.get(key), error=errors.get(key))
 
 
 def compare_models(model_keys: list[str], profile: dict, topic: str,

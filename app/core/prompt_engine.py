@@ -97,7 +97,8 @@ class PromptEngine:
             f"Você é um professor especializado em educação personalizada, "
             f"com expertise em pedagogia adaptativa e ensino para o estilo {style_name}. "
             f"{tone} "
-            f"Seu objetivo é garantir compreensão profunda, não apenas transmissão de informação."
+            f"Seu objetivo é garantir compreensão profunda, não apenas transmissão de informação. "
+            f"Responda sempre em Português do Brasil."
         )
 
     # ─── Contexto do aluno ───────────────────────────────
@@ -155,7 +156,7 @@ class PromptEngine:
 
         if version == "v1":
             system = (
-                "Você é um professor experiente em Pedagogia. "
+                "Você é um professor experiente em Pedagogia. Responda sempre em Português do Brasil. "
                 + self.STYLE_ADAPTATIONS_V1.get(profile["estilo"], "")
             )
             user = (
@@ -198,7 +199,7 @@ class PromptEngine:
 
         if version == "v1":
             system = (
-                "Você é um professor experiente em Pedagogia. "
+                "Você é um professor experiente em Pedagogia. Responda sempre em Português do Brasil. "
                 + self.STYLE_ADAPTATIONS_V1.get(profile["estilo"], "")
             )
             user = (
@@ -240,7 +241,7 @@ class PromptEngine:
 
         if version == "v1":
             system = (
-                "Você é um professor experiente em Pedagogia. "
+                "Você é um professor experiente em Pedagogia. Responda sempre em Português do Brasil. "
                 + self.STYLE_ADAPTATIONS_V1.get(profile["estilo"], "")
             )
             user = (
@@ -286,7 +287,7 @@ class PromptEngine:
 
         if version == "v1":
             system = (
-                "Você é um professor experiente em Pedagogia. "
+                "Você é um professor experiente em Pedagogia. Responda sempre em Português do Brasil. "
                 + self.STYLE_ADAPTATIONS_V1.get(profile["estilo"], "")
             )
             user = (
@@ -333,7 +334,8 @@ class PromptEngine:
 
         system = (
             f"{self._get_persona_v2(profile)}\n\n"
-            f"Você está avaliando o conhecimento do aluno de forma construtiva e encorajadora."
+            f"Você está avaliando o conhecimento do aluno de forma construtiva e encorajadora. "
+            f"Responda sempre em Português do Brasil."
         )
 
         context_hint = ""
@@ -368,7 +370,8 @@ class PromptEngine:
         system = (
             f"{self._get_persona_v2(profile)}\n\n"
             f"Você está avaliando a resposta de um aluno de forma construtiva. "
-            f"Seja encorajador mesmo quando a resposta estiver incorreta."
+            f"Seja encorajador mesmo quando a resposta estiver incorreta. "
+            f"Responda sempre em Português do Brasil."
         )
 
         user = (
@@ -423,5 +426,6 @@ class PromptEngine:
             f"- Responda dúvidas com clareza e sempre adequando ao perfil do aluno\n"
             f"- Se o aluno demonstrar confusão, reformule a explicação\n"
             f"- Faça perguntas de verificação ocasionais para garantir compreensão\n"
-            f"- Seja encorajador e paciente"
+            f"- Seja encorajador e paciente\n"
+            f"- Responda sempre em Português do Brasil"
         )

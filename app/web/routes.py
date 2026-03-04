@@ -253,9 +253,13 @@ def _run_versions_comparison(cid: str, adapter, profile: dict, topic: str,
         cache = get_cache()
         cache.reset_stats()
 
-        def progress_cb(completed, total, desc):
+        def progress_cb(completed, total, desc, *, key=None, result=None, error=None):
             with _comparisons_lock:
                 _last_comparisons[cid]["progress"] = f"{completed}/{total}"
+                if key and result:
+                    _last_comparisons[cid].setdefault("partial_results", {})[key] = result
+                elif key and error:
+                    _last_comparisons[cid].setdefault("partial_results", {})[key] = {"error": error}
 
         result = compare_versions(adapter, profile, topic, get_engine(), cache, get_db(),
                                   progress_callback=progress_cb)
@@ -293,9 +297,13 @@ def _run_models_comparison(cid: str, model_keys: list[str], profile: dict,
         cache = get_cache()
         cache.reset_stats()
 
-        def progress_cb(completed, total, desc):
+        def progress_cb(completed, total, desc, *, key=None, result=None, error=None):
             with _comparisons_lock:
                 _last_comparisons[cid]["progress"] = f"{completed}/{total}"
+                if key and result:
+                    _last_comparisons[cid].setdefault("partial_results", {})[key] = result
+                elif key and error:
+                    _last_comparisons[cid].setdefault("partial_results", {})[key] = {"error": error}
 
         result = compare_models(model_keys, profile, topic, get_engine(), cache, get_db(),
                                 progress_callback=progress_cb)
@@ -372,6 +380,11 @@ def compare_versions_page():
         topic=topic,
         model_label=model_label,
         total_tasks=total_tasks,
+        content_types=CONTENT_TYPES,
+        labels=CONTENT_TYPE_LABELS,
+        columns=["v1", "v2"],
+        column_labels={"v1": "v1 (Básico)", "v2": "v2 (Otimizado)"},
+        has_judge=bool(os.getenv(JUDGE_API_KEY_ENV)),
     )
 
 
@@ -412,7 +425,7 @@ def compare_models_page():
     )
     thread.start()
 
-    model_labels = [MODEL_REGISTRY.get(k, {}).get("label", k) for k in model_keys]
+    model_labels_list = {k: MODEL_REGISTRY.get(k, {}).get("label", k) for k in model_keys}
 
     return render_template(
         "loading.html",
@@ -420,8 +433,13 @@ def compare_models_page():
         mode="models",
         profile=profile,
         topic=topic,
-        model_label=", ".join(model_labels),
+        model_label=", ".join(model_labels_list.values()),
         total_tasks=total_tasks,
+        content_types=CONTENT_TYPES,
+        labels=CONTENT_TYPE_LABELS,
+        columns=model_keys,
+        column_labels=model_labels_list,
+        has_judge=bool(os.getenv(JUDGE_API_KEY_ENV)),
     )
 
 
@@ -432,10 +450,17 @@ def api_comparison_status(cid):
         comp = _last_comparisons.get(cid)
     if not comp:
         return jsonify({"error": "Comparação não encontrada."}), 404
-    return jsonify({
+    response = {
         "status": comp.get("status", "processing"),
         "progress": comp.get("progress", "0/0"),
-    })
+        "partial_results": comp.get("partial_results", {}),
+    }
+    if comp.get("status") == "done" and comp.get("result"):
+        response["cache_stats"] = comp["result"].get("cache_stats", {})
+        response["total_elapsed"] = comp["result"].get("total_elapsed", 0)
+    if comp.get("status") == "error":
+        response["error"] = comp.get("error", "Erro desconhecido.")
+    return jsonify(response)
 
 
 @bp.route("/compare/result/<cid>")

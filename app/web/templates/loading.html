@@ -1,50 +1,145 @@
 {% extends "base.html" %}
-{% block title %}Processando... | EduPrompt{% endblock %}
+{% block title %}Comparação em andamento | EduPrompt{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="loading-page">
-        <div class="loading-spinner"></div>
-        <h2 id="loading-title">Gerando compara&ccedil;&atilde;o...</h2>
-        <p class="text-muted" id="loading-progress">Iniciando (0/{{ total_tasks }} tarefas)</p>
-
-        <div class="card" style="margin-top: 1.5rem; text-align: left;">
-            <p><strong>Modo:</strong>
-                {% if mode == 'versions' %}Compara&ccedil;&atilde;o v1 vs v2{% else %}Compara&ccedil;&atilde;o Multi-Modelo{% endif %}
-            </p>
-            <p><strong>T&oacute;pico:</strong> {{ topic }}</p>
-            <p><strong>Modelo:</strong> {{ model_label }}</p>
-            <p><strong>Perfil:</strong> {{ profile.nome }} ({{ profile.idade }} anos, {{ profile.nivel }}, {{ profile.estilo }})</p>
-        </div>
-
-        <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
-            Cada modelo pode levar at&eacute; 50 segundos para responder. Por favor, aguarde.
+    <div class="session-header">
+        {% if mode == 'versions' %}
+        <h2>&#128260; Comparação v1 vs v2: {{ topic }}</h2>
+        {% else %}
+        <h2>&#128202; Comparação Multi-Modelo: {{ topic }}</h2>
+        {% endif %}
+        <p class="text-muted">
+            Perfil: <strong>{{ profile.nome }}</strong> ({{ profile.idade }} anos, {{ profile.nivel }}, {{ profile.estilo }})
+            | Modelo: <strong>{{ model_label }}</strong>
+            | <span id="status-text">Gerando... <span id="progress-text">0/{{ total_tasks }}</span> tarefas</span>
         </p>
+    </div>
 
-        <div id="error-msg" class="card" style="display: none; border-color: var(--danger); margin-top: 1rem;">
-            <p class="error" id="error-text"></p>
-            <a href="{{ url_for('main.home') }}" class="btn btn-secondary" style="margin-top: 0.5rem;">Voltar ao In&iacute;cio</a>
+    {% for ct in content_types %}
+    <div class="comparison-section">
+        <h3 class="section-title">{{ labels.get(ct, ct) }}</h3>
+        <div class="comparison-grid {% if mode == 'versions' %}two-cols{% else %}multi-cols{% endif %}">
+            {% for col in columns %}
+            <div class="comparison-card {% if mode == 'versions' %}{{ col }}{% endif %}" id="card-{{ ct }}_{{ col }}">
+                <div class="card-header">{{ column_labels[col] }}
+                    <span class="source-badge" id="badge-{{ ct }}_{{ col }}"></span>
+                </div>
+                <div class="card-body" id="body-{{ ct }}_{{ col }}">
+                    <div class="card-placeholder">
+                        <div class="placeholder-spinner"></div>
+                        <span class="text-muted">Aguardando...</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+    </div>
+    {% endfor %}
+
+    <!-- Stats card — hidden until done -->
+    <div class="card stats-card" id="stats-card" style="display:none;">
+        <h3>&#128202; Estatísticas</h3>
+        <p id="stats-content"></p>
+    </div>
+
+    <!-- Judge — hidden until done -->
+    {% if has_judge %}
+    <div class="card judge-actions" id="judge-actions" style="display:none; text-align:center; margin-top:1rem;">
+        <button id="run-judge-btn" class="btn btn-primary" onclick="runJudge()">
+            &#9878;&#65039; Avaliar com LLM-as-Judge (DeepSeek V3.2)
+        </button>
+    </div>
+
+    <div class="card judge-section" id="judge-section" style="display:none; margin-top:1rem;">
+        <h3>&#9878;&#65039; Avaliação LLM-as-Judge</h3>
+        <div id="judge-results"></div>
+    </div>
+    {% endif %}
+
+    <!-- Error display -->
+    <div id="error-msg" class="card" style="display:none; border-color:var(--danger); margin-top:1rem;">
+        <p class="error" id="error-text"></p>
+    </div>
+
+    <div class="session-actions" style="margin-top:1rem;">
+        <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Voltar ao Início</a>
     </div>
 </div>
 
 <script>
 (function() {
     const cid = "{{ cid }}";
+    const mode = "{{ mode }}";
     const totalTasks = {{ total_tasks }};
+    const contentTypes = {{ content_types | tojson }};
+    const columns = {{ columns | tojson }};
     let pollInterval = null;
+    let renderedKeys = {};
 
-    function updateProgress(progress) {
-        const el = document.getElementById('loading-progress');
-        const parts = progress.split('/');
-        const done = parseInt(parts[0]) || 0;
-        el.textContent = 'Progresso: ' + done + '/' + totalTasks + ' tarefas conclu\u00eddas';
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function renderCard(key, data) {
+        if (renderedKeys[key]) return;
+        renderedKeys[key] = true;
+
+        const bodyEl = document.getElementById('body-' + key);
+        const badgeEl = document.getElementById('badge-' + key);
+        if (!bodyEl) return;
+
+        if (data.error) {
+            bodyEl.innerHTML = '<p class="error">\u26a0\ufe0f ' + escapeHtml(data.error) + '</p>';
+            return;
+        }
+
+        // Render content
+        bodyEl.style.whiteSpace = 'pre-wrap';
+        bodyEl.textContent = data.content || '';
+
+        // Render source badge
+        if (badgeEl) {
+            if (data.source === 'cache') {
+                badgeEl.className = 'source-badge badge-yellow';
+                badgeEl.innerHTML = '\u26a1 Cache';
+            } else {
+                badgeEl.className = 'source-badge badge-green';
+                badgeEl.innerHTML = '\ud83c\udf10 ' + (data.elapsed || 0) + 's';
+            }
+        }
+    }
+
+    function showDone(data) {
+        clearInterval(pollInterval);
+        const elapsed = data.total_elapsed || '?';
+        document.getElementById('status-text').innerHTML =
+            'Concluído! <strong>' + totalTasks + '/' + totalTasks + '</strong> tarefas | Tempo: <strong>' + elapsed + 's</strong>';
+
+        // Render any remaining partial results
+        const pr = data.partial_results || {};
+        for (const k of Object.keys(pr)) renderCard(k, pr[k]);
+
+        // Show stats
+        const cs = data.cache_stats || {};
+        const statsCard = document.getElementById('stats-card');
+        if (statsCard && cs.hits !== undefined) {
+            document.getElementById('stats-content').innerHTML =
+                'Cache: <strong>' + cs.hits + '</strong> hits / <strong>' + cs.misses +
+                '</strong> misses (' + cs.hit_rate + '% economia) | Tempo total: <strong>' + elapsed + 's</strong>';
+            statsCard.style.display = 'block';
+        }
+
+        // Show judge button
+        const judgeEl = document.getElementById('judge-actions');
+        if (judgeEl) judgeEl.style.display = 'block';
     }
 
     function showError(msg) {
-        document.getElementById('loading-title').textContent = 'Erro na compara\u00e7\u00e3o';
-        document.getElementById('loading-progress').style.display = 'none';
-        document.querySelector('.loading-spinner').style.display = 'none';
+        clearInterval(pollInterval);
+        document.getElementById('status-text').innerHTML = '<span class="error">Erro na comparação</span>';
         document.getElementById('error-msg').style.display = 'block';
         document.getElementById('error-text').textContent = msg;
     }
@@ -54,23 +149,134 @@
             const resp = await fetch('/api/comparison-status/' + cid);
             const data = await resp.json();
 
+            if (data.error && !data.status) {
+                showError(data.error);
+                return;
+            }
+
+            // Update progress
+            const progress = data.progress || '0/' + totalTasks;
+            document.getElementById('progress-text').textContent = progress;
+
+            // Render partial results
+            const pr = data.partial_results || {};
+            for (const key of Object.keys(pr)) {
+                renderCard(key, pr[key]);
+            }
+
             if (data.status === 'done') {
-                clearInterval(pollInterval);
-                document.getElementById('loading-title').textContent = 'Conclu\u00eddo! Redirecionando...';
-                window.location.href = '/compare/result/' + cid;
+                showDone(data);
             } else if (data.status === 'error') {
-                clearInterval(pollInterval);
                 showError(data.error || 'Erro desconhecido.');
-            } else {
-                updateProgress(data.progress || '0/' + totalTasks);
             }
         } catch (e) {
-            // Falha de rede — continua tentando
+            // Network error — keep polling
         }
     }
 
-    pollInterval = setInterval(checkStatus, 3000);
+    pollInterval = setInterval(checkStatus, 2000);
     checkStatus();
+
+    // Expose for judge
+    window._comparisonCid = cid;
+    window._comparisonMode = mode;
 })();
+
+{% if has_judge %}
+async function runJudge() {
+    const btn = document.getElementById('run-judge-btn');
+    btn.disabled = true;
+    btn.textContent = '\u23f3 Avaliando...';
+
+    try {
+        const resp = await fetch('/api/evaluate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+        const data = await resp.json();
+
+        if (data.error) {
+            document.getElementById('judge-results').innerHTML =
+                '<p class="error">\u26a0\ufe0f ' + data.error + '</p>';
+        } else {
+            renderJudgeResults(data.evaluation);
+        }
+        document.getElementById('judge-section').style.display = 'block';
+    } catch (e) {
+        document.getElementById('judge-results').innerHTML =
+            '<p class="error">\u26a0\ufe0f Erro de conexão.</p>';
+        document.getElementById('judge-section').style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = '\u2696\ufe0f Reavaliar';
+}
+
+function renderJudgeResults(ev) {
+    const criteriaLabels = {
+        adequacao_nivel: 'Adequação Nível',
+        clareza: 'Clareza',
+        adequacao_estilo: 'Adequação Estilo',
+        engajamento: 'Engajamento'
+    };
+    const mode = window._comparisonMode;
+    let html = '';
+
+    for (const [ct, data] of Object.entries(ev.evaluations)) {
+        if (data.error) {
+            html += '<p class="error">\u26a0\ufe0f ' + data.label + ': ' + data.error + '</p>';
+            continue;
+        }
+        html += '<h4>' + data.label + '</h4>';
+        html += '<table class="judge-table"><thead><tr><th>Critério</th>';
+
+        if (mode === 'versions') {
+            html += '<th>v1 (Básico)</th><th>v2 (Otimizado)</th>';
+        } else {
+            const modelKeys = Object.keys(data.scores);
+            for (const mk of modelKeys) html += '<th>' + mk + '</th>';
+        }
+        html += '</tr></thead><tbody>';
+
+        for (const [key, label] of Object.entries(criteriaLabels)) {
+            html += '<tr><td>' + label + '</td>';
+            if (mode === 'versions') {
+                const s1 = (data.v1_scores && data.v1_scores[key]) || '-';
+                const s2 = (data.v2_scores && data.v2_scores[key]) || '-';
+                html += '<td>' + s1 + '</td><td>' + s2 + '</td>';
+            } else {
+                for (const mk of Object.keys(data.scores)) {
+                    const s = (data.scores[mk] && data.scores[mk][key]) || '-';
+                    html += '<td>' + s + '</td>';
+                }
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        html += '<p><strong>Vencedor:</strong> <span style="color:var(--accent)">' + data.vencedor + '</span></p>';
+        if (data.justificativa) {
+            html += '<p class="text-muted">' + data.justificativa + '</p>';
+        }
+    }
+
+    if (mode === 'versions') {
+        const w = ev.overall_winner || '';
+        html += '<div class="card" style="margin-top:1rem;text-align:center;padding:1rem;">';
+        html += '<strong>Resultado Geral:</strong> v1 média ' + ev.overall_v1_avg + ' \u00d7 v2 média ' + ev.overall_v2_avg;
+        html += '<br><span style="color:var(--accent);font-size:1.2rem;">\ud83c\udfc6 ' + w.toUpperCase() + ' VENCEU</span>';
+        html += '</div>';
+    } else {
+        const avgs = Object.entries(ev.model_averages || {}).map(function(e) { return e[0] + ': ' + e[1]; }).join(' | ');
+        const winner = ev.overall_winner || '';
+        html += '<div class="card" style="margin-top:1rem;text-align:center;padding:1rem;">';
+        html += '<div>' + avgs + '</div>';
+        html += '<span style="color:var(--accent);font-size:1.2rem;">\ud83c\udfc6 ' + winner + '</span>';
+        html += '</div>';
+    }
+
+    document.getElementById('judge-results').innerHTML = html;
+}
+{% endif %}
 </script>
 {% endblock %}

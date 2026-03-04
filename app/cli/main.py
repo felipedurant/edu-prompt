@@ -637,7 +637,7 @@ def cmd_compare_versions():
     if v1_outputs and v2_outputs:
         if not os.getenv(JUDGE_API_KEY_ENV):
             console.print(f"\n[dim]LLM-as-judge indispon\u00edvel: {JUDGE_API_KEY_ENV} n\u00e3o configurada.[/dim]")
-        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?", default=False):
+        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?"):
             with console.status("\u23f3 Avaliando com LLM-as-judge..."):
                 try:
                     evaluator = ContentEvaluator()
@@ -651,7 +651,7 @@ def cmd_compare_versions():
                 _display_judge_versions(eval_result)
 
     # Oferecer exportação
-    if Confirm.ask("\nDeseja exportar os resultados?", default=False):
+    if Confirm.ask("\nDeseja exportar os resultados?"):
         _export_comparison(result)
 
 
@@ -854,7 +854,7 @@ def cmd_compare_models():
     if any(len(v) >= 2 for v in api_outputs.values()):
         if not os.getenv(JUDGE_API_KEY_ENV):
             console.print(f"\n[dim]LLM-as-judge indispon\u00edvel: {JUDGE_API_KEY_ENV} n\u00e3o configurada.[/dim]")
-        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?", default=False):
+        elif Confirm.ask("\nDeseja avaliar com LLM-as-judge (DeepSeek V3.2)?"):
             with console.status("\u23f3 Avaliando com LLM-as-judge..."):
                 try:
                     evaluator = ContentEvaluator()
@@ -865,7 +865,7 @@ def cmd_compare_models():
             if eval_result:
                 _display_judge_apis(eval_result)
 
-    if Confirm.ask("\nDeseja exportar os resultados?", default=False):
+    if Confirm.ask("\nDeseja exportar os resultados?"):
         _export_comparison(result)
 
 
