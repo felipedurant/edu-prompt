@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import threading
 from uuid import uuid4
 
 from flask import (
@@ -41,6 +42,7 @@ _cache = None
 _engine = None
 _sessions: dict[str, SessionManager] = {}
 _last_comparisons: dict[str, dict] = {}
+_comparisons_lock = threading.Lock()
 
 
 def get_db() -> Database:
@@ -244,9 +246,87 @@ def api_regenerate():
 # ─── Comparações ────────────────────────────────────────
 
 
+def _run_versions_comparison(cid: str, adapter, profile: dict, topic: str,
+                             model_key: str):
+    """Executa comparação v1 vs v2 em background thread."""
+    try:
+        cache = get_cache()
+        cache.reset_stats()
+
+        def progress_cb(completed, total, desc):
+            with _comparisons_lock:
+                _last_comparisons[cid]["progress"] = f"{completed}/{total}"
+
+        result = compare_versions(adapter, profile, topic, get_engine(), cache, get_db(),
+                                  progress_callback=progress_cb)
+        model_label = MODEL_REGISTRY.get(model_key, {}).get("label", model_key)
+
+        # Extrair dados para o judge
+        v1_outputs = {}
+        v2_outputs = {}
+        for ct, info in result["results"].items():
+            if info.get("v1") and info.get("v2"):
+                v1_outputs[ct] = info["v1"]["content"]
+                v2_outputs[ct] = info["v2"]["content"]
+
+        with _comparisons_lock:
+            _last_comparisons[cid].update({
+                "status": "done",
+                "result": result,
+                "model_label": model_label,
+                "v1_outputs": v1_outputs,
+                "v2_outputs": v2_outputs,
+            })
+    except Exception as e:
+        logger.error("Erro na comparação v1/v2: %s", e)
+        with _comparisons_lock:
+            _last_comparisons[cid].update({
+                "status": "error",
+                "error": str(e),
+            })
+
+
+def _run_models_comparison(cid: str, model_keys: list[str], profile: dict,
+                           topic: str):
+    """Executa comparação multi-modelo em background thread."""
+    try:
+        cache = get_cache()
+        cache.reset_stats()
+
+        def progress_cb(completed, total, desc):
+            with _comparisons_lock:
+                _last_comparisons[cid]["progress"] = f"{completed}/{total}"
+
+        result = compare_models(model_keys, profile, topic, get_engine(), cache, get_db(),
+                                progress_callback=progress_cb)
+
+        # Extrair dados para o judge
+        api_outputs = {}
+        for ct, info in result["results"].items():
+            api_outputs[ct] = {}
+            for mk, mdata in info["models"].items():
+                if mdata.get("result"):
+                    api_outputs[ct][mk] = mdata["result"]["content"]
+
+        with _comparisons_lock:
+            _last_comparisons[cid].update({
+                "status": "done",
+                "result": result,
+                "model_label": "Multi-Modelo",
+                "api_outputs": api_outputs,
+            })
+    except Exception as e:
+        logger.error("Erro na comparação multi-modelo: %s", e)
+        with _comparisons_lock:
+            _last_comparisons[cid].update({
+                "status": "error",
+                "error": str(e),
+            })
+
+
 @bp.route("/compare/versions", methods=["POST"])
 def compare_versions_page():
-    """Comparação v1 vs v2."""
+    """Comparação v1 vs v2 — inicia em background e retorna loading page."""
     profile_id = request.form.get("profile_id")
     model_key = request.form.get("model_key")
     topic = request.form.get("topic", "").strip()
@@ -263,46 +343,41 @@ def compare_versions_page():
     except ValueError:
         return redirect(url_for("main.home"))
 
-    cache = get_cache()
-    cache.reset_stats()
-
-    result = compare_versions(adapter, profile, topic, get_engine(), cache, get_db())
     model_label = MODEL_REGISTRY.get(model_key, {}).get("label", model_key)
-
-    # Salvar dados para o judge
-    v1_outputs = {}
-    v2_outputs = {}
-    for ct, info in result["results"].items():
-        if info.get("v1") and info.get("v2"):
-            v1_outputs[ct] = info["v1"]["content"]
-            v2_outputs[ct] = info["v2"]["content"]
+    total_tasks = len(CONTENT_TYPES) * 2  # 4 tipos × 2 versões
 
     cid = str(uuid4())
-    _last_comparisons[cid] = {
-        "mode": "versions",
-        "topic": topic,
-        "profile_id": profile_id,
-        "v1_outputs": v1_outputs,
-        "v2_outputs": v2_outputs,
-    }
+    with _comparisons_lock:
+        _last_comparisons[cid] = {
+            "status": "processing",
+            "mode": "versions",
+            "topic": topic,
+            "profile_id": profile_id,
+            "progress": f"0/{total_tasks}",
+        }
     flask_session["last_comparison_id"] = cid
 
+    thread = threading.Thread(
+        target=_run_versions_comparison,
+        args=(cid, adapter, profile, topic, model_key),
+        daemon=True,
+    )
+    thread.start()
+
     return render_template(
-        "comparison.html",
+        "loading.html",
+        cid=cid,
         mode="versions",
         profile=profile,
         topic=topic,
         model_label=model_label,
-        result=result,
-        content_types=CONTENT_TYPES,
-        labels=CONTENT_TYPE_LABELS,
-        has_judge=bool(os.getenv(JUDGE_API_KEY_ENV)),
+        total_tasks=total_tasks,
     )
 
 
 @bp.route("/compare/models", methods=["POST"])
 def compare_models_page():
-    """Comparação multi-modelo."""
+    """Comparação multi-modelo — inicia em background e retorna loading page."""
     profile_id = request.form.get("profile_id")
     topic = request.form.get("topic", "").strip()
     model_keys = request.form.getlist("model_keys")
@@ -310,39 +385,82 @@ def compare_models_page():
     if not profile_id or not topic or len(model_keys) < 2:
         return redirect(url_for("main.home"))
 
+    if len(model_keys) > 3:
+        model_keys = model_keys[:3]
+
     profile = get_profile_by_id(profile_id)
     if not profile:
         return redirect(url_for("main.home"))
 
-    cache = get_cache()
-    cache.reset_stats()
-
-    result = compare_models(model_keys, profile, topic, get_engine(), cache, get_db())
-
-    # Salvar dados para o judge
-    api_outputs = {}
-    for ct, info in result["results"].items():
-        api_outputs[ct] = {}
-        for mk, mdata in info["models"].items():
-            if mdata.get("result"):
-                api_outputs[ct][mk] = mdata["result"]["content"]
+    total_tasks = len(CONTENT_TYPES) * len(model_keys)
 
     cid = str(uuid4())
-    _last_comparisons[cid] = {
-        "mode": "models",
-        "topic": topic,
-        "profile_id": profile_id,
-        "api_outputs": api_outputs,
-    }
+    with _comparisons_lock:
+        _last_comparisons[cid] = {
+            "status": "processing",
+            "mode": "models",
+            "topic": topic,
+            "profile_id": profile_id,
+            "progress": f"0/{total_tasks}",
+        }
+    flask_session["last_comparison_id"] = cid
+
+    thread = threading.Thread(
+        target=_run_models_comparison,
+        args=(cid, model_keys, profile, topic),
+        daemon=True,
+    )
+    thread.start()
+
+    model_labels = [MODEL_REGISTRY.get(k, {}).get("label", k) for k in model_keys]
+
+    return render_template(
+        "loading.html",
+        cid=cid,
+        mode="models",
+        profile=profile,
+        topic=topic,
+        model_label=", ".join(model_labels),
+        total_tasks=total_tasks,
+    )
+
+
+@bp.route("/api/comparison-status/<cid>")
+def api_comparison_status(cid):
+    """Polling endpoint para status da comparação em background."""
+    with _comparisons_lock:
+        comp = _last_comparisons.get(cid)
+    if not comp:
+        return jsonify({"error": "Comparação não encontrada."}), 404
+    return jsonify({
+        "status": comp.get("status", "processing"),
+        "progress": comp.get("progress", "0/0"),
+    })
+
+
+@bp.route("/compare/result/<cid>")
+def compare_result_page(cid):
+    """Renderiza resultado de comparação concluída."""
+    with _comparisons_lock:
+        comp = _last_comparisons.get(cid)
+    if not comp:
+        return redirect(url_for("main.home"))
+    if comp.get("status") != "done":
+        return redirect(url_for("main.home"))
+
+    profile = get_profile_by_id(comp["profile_id"])
+    if not profile:
+        return redirect(url_for("main.home"))
+
     flask_session["last_comparison_id"] = cid
 
     return render_template(
         "comparison.html",
-        mode="models",
+        mode=comp["mode"],
         profile=profile,
-        topic=topic,
-        model_label="Multi-Modelo",
-        result=result,
+        topic=comp["topic"],
+        model_label=comp.get("model_label", ""),
+        result=comp["result"],
         content_types=CONTENT_TYPES,
         labels=CONTENT_TYPE_LABELS,
         model_registry=MODEL_REGISTRY,
