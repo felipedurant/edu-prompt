@@ -116,7 +116,8 @@
     {% endif %}
 
     <div class="session-actions" style="margin-top:1rem;">
-        <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Voltar ao In&iacute;cio</a>
+        <a href="/api/export/comparison/{{ cid }}" class="btn btn-accent">Exportar Compara&ccedil;&atilde;o (.md)</a>
+        <a href="{{ url_for('main.home') }}" class="btn btn-secondary">Ir para Home</a>
     </div>
 </div>
 

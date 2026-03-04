@@ -776,17 +776,26 @@ def cmd_compare_models():
         console.print("[red]Configure ao menos 2 provedores para comparar modelos.[/red]")
         return
 
-    # Selecionar 1 modelo por provedor
+    # Selecionar 1 modelo por provedor (Enter vazio para pular)
     selected_keys = []
     provider_display = {"gemini": "Google", "groq": "Groq", "openrouter": "OpenRouter"}
+
+    console.print("[dim]Selecione 1 modelo por provedor (Enter para pular, mín. 2 provedores).[/dim]")
 
     for provider, keys in providers_models.items():
         display_name = provider_display.get(provider, provider)
 
         if len(keys) == 1:
             label = MODEL_REGISTRY[keys[0]]["label"]
+            choice = Prompt.ask(
+                f"  [bold cyan]{display_name}[/bold cyan]: {label}",
+                default="1",
+            )
+            if choice.strip() == "":
+                console.print(f"  [dim]{display_name}: pulado[/dim]")
+                continue
             selected_keys.append(keys[0])
-            console.print(f"  [dim]{display_name}:[/dim] {label} [dim](auto)[/dim]")
+            console.print(f"  [dim]{display_name}:[/dim] {label}")
             continue
 
         table = Table(show_header=False, box=None, padding=(0, 1))
@@ -796,14 +805,21 @@ def cmd_compare_models():
         for i, key in enumerate(keys):
             table.add_row(str(i + 1), MODEL_REGISTRY[key]["label"])
             mapping[str(i + 1)] = key
-        console.print(Panel(table, title=f"{display_name}", border_style="dim"))
+        console.print(Panel(table, title=f"{display_name} [dim](Enter para pular)[/dim]", border_style="dim"))
 
         while True:
             choice = Prompt.ask(f"[bold cyan]{display_name}[/bold cyan]")
+            if choice.strip() == "":
+                console.print(f"  [dim]{display_name}: pulado[/dim]")
+                break
             if choice in mapping:
                 selected_keys.append(mapping[choice])
                 break
             console.print("[red]Op\u00e7\u00e3o inv\u00e1lida.[/red]")
+
+    if len(selected_keys) < 2:
+        console.print("[red]Selecione ao menos 2 modelos de provedores diferentes.[/red]")
+        return
 
     cache = get_cache()
     cache.reset_stats()

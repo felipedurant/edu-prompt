@@ -164,10 +164,8 @@ async function sendMessage(msg) {
                 addSystemMessage('Este conte&uacute;do j&aacute; foi gerado. <button class="btn-link" onclick="regenerate(\'' + data.content_type + '\')">Regenerar?</button>');
                 break;
             case 'end':
-                addSystemMessage(data.message);
-                chatInput.disabled = true;
-                sendBtn.disabled = true;
-                break;
+                endSession();
+                return;
         }
     } catch (err) {
         hideLoading();
@@ -210,7 +208,25 @@ document.querySelectorAll('.cmd-btn').forEach(btn => {
     btn.addEventListener('click', () => sendMessage(btn.dataset.cmd));
 });
 
-document.getElementById('end-session').addEventListener('click', () => sendMessage('/sair'));
+function endSession() {
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+    document.querySelectorAll('.cmd-btn').forEach(function(b) { b.disabled = true; });
+    document.querySelector('.session-actions').innerHTML =
+        '<a href="/api/export/session/' + SESSION_ID + '" class="btn btn-accent">Exportar Sess\u00e3o (.md)</a> ' +
+        '<a href="/" class="btn btn-secondary">Ir para Home</a>';
+}
+
+document.getElementById('end-session').addEventListener('click', async () => {
+    try {
+        await fetch('/api/chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({session_id: SESSION_ID, message: '/sair'}),
+        });
+    } catch (e) {}
+    endSession();
+});
 
 // Auto-fetch initial content
 async function loadInitialContent() {

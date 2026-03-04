@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from flask import (
     Blueprint,
+    make_response,
     render_template,
     request,
     jsonify,
@@ -27,6 +28,7 @@ from app.core.evaluator import ContentEvaluator
 from app.core.export import (
     export_comparison_json,
     export_comparison_markdown,
+    export_session_markdown,
     save_export,
 )
 from app.storage.database import Database
@@ -423,6 +425,11 @@ def compare_models_page():
     if len(model_keys) > 3:
         model_keys = model_keys[:3]
 
+    # Rejeitar se dois modelos do mesmo provedor
+    providers = [MODEL_REGISTRY[k]["provider"] for k in model_keys if k in MODEL_REGISTRY]
+    if len(providers) != len(set(providers)):
+        return redirect(url_for("main.home"))
+
     profile = get_profile_by_id(profile_id)
     if not profile:
         return redirect(url_for("main.home"))
@@ -503,6 +510,7 @@ def compare_result_page(cid):
 
     return render_template(
         "comparison.html",
+        cid=cid,
         mode=comp["mode"],
         profile=profile,
         topic=comp["topic"],
@@ -556,6 +564,48 @@ def api_evaluate():
         return jsonify({"error": str(e)}), 400
 
     return jsonify({"evaluation": eval_result})
+
+
+# ─── Export ────────────────────────────────────────────
+
+
+@bp.route("/api/export/session/<session_id>")
+def api_export_session(session_id):
+    """Download da sessão em Markdown."""
+    try:
+        md = export_session_markdown(session_id, get_db())
+    except ValueError:
+        return jsonify({"error": "Sessão não encontrada."}), 404
+
+    response = make_response(md)
+    response.headers["Content-Type"] = "text/markdown; charset=utf-8"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="sessao_{session_id[:8]}.md"'
+    )
+    return response
+
+
+@bp.route("/api/export/comparison/<cid>")
+def api_export_comparison(cid):
+    """Download da comparação em Markdown."""
+    with _comparisons_lock:
+        comp = _last_comparisons.get(cid)
+
+    if not comp or comp.get("status") != "done":
+        return jsonify({"error": "Comparação não encontrada."}), 404
+
+    profile = get_profile_by_id(comp["profile_id"])
+    data = dict(comp["result"])
+    data["topic"] = comp.get("topic", "")
+    data["profile"] = profile or {}
+
+    md = export_comparison_markdown(data)
+    response = make_response(md)
+    response.headers["Content-Type"] = "text/markdown; charset=utf-8"
+    response.headers["Content-Disposition"] = (
+        f'attachment; filename="comparacao_{cid[:8]}.md"'
+    )
+    return response
 
 
 # ─── Perfis ────────────────────────────────────────────

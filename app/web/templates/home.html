@@ -87,7 +87,7 @@
         <div class="card">
             <h2>&#128202; Comparar Modelos</h2>
             <p>Compare respostas de diferentes modelos de IA lado a lado (sempre v2).</p>
-            <form action="{{ url_for('main.compare_models_page') }}" method="post">
+            <form action="{{ url_for('main.compare_models_page') }}" method="post" id="compare-models-form">
                 <div class="form-group">
                     <label>Perfil do Aluno</label>
                     <select name="profile_id" required>
@@ -98,19 +98,30 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Modelos (selecione 2 ou 3)</label>
+                    <label>Modelos <span class="text-muted">(2 ou 3, de provedores diferentes)</span></label>
+                    {% set ns = namespace(prev_provider='') %}
                     {% for key, info in models.items() %}
+                    {% if info.provider != ns.prev_provider %}
+                    {% if ns.prev_provider != '' %}</div>{% endif %}
+                    <div class="provider-group" style="margin: 0.5rem 0 0.25rem;">
+                        <span class="text-muted" style="font-size:0.8rem; text-transform:uppercase;">{{ info.provider }}</span>
+                    </div>
+                    <div class="provider-models">
+                    {% set ns.prev_provider = info.provider %}
+                    {% endif %}
                     <label class="checkbox-label">
-                        <input type="checkbox" name="model_keys" value="{{ key }}">
+                        <input type="checkbox" name="model_keys" value="{{ key }}" data-provider="{{ info.provider }}" class="model-cb">
                         {{ info.label }}
                     </label>
                     {% endfor %}
+                    {% if ns.prev_provider != '' %}</div>{% endif %}
+                    <p id="model-hint" class="text-muted" style="font-size:0.8rem; margin-top:0.5rem;">Selecione 1 modelo por provedor (m&iacute;n. 2, m&aacute;x. 3).</p>
                 </div>
                 <div class="form-group">
                     <label>T&oacute;pico</label>
                     <input type="text" name="topic" placeholder="Ex: Fotoss&iacute;ntese..." required>
                 </div>
-                <button type="submit" class="btn btn-accent">Comparar Modelos</button>
+                <button type="submit" class="btn btn-accent" id="compare-models-btn" disabled>Comparar Modelos</button>
             </form>
         </div>
     </div>
@@ -185,6 +196,64 @@
 </div>
 
 <script>
+// ─── Model selection validation ───
+(function() {
+    var checkboxes = document.querySelectorAll('.model-cb');
+    var submitBtn = document.getElementById('compare-models-btn');
+    var hint = document.getElementById('model-hint');
+    if (!checkboxes.length) return;
+
+    function updateState() {
+        var checked = document.querySelectorAll('.model-cb:checked');
+        var selectedProviders = {};
+        checked.forEach(function(cb) {
+            selectedProviders[cb.dataset.provider] = true;
+        });
+        var count = checked.length;
+
+        // Re-enable all first
+        checkboxes.forEach(function(cb) { cb.disabled = false; });
+
+        // Disable same-provider siblings for each checked box
+        checked.forEach(function(cb) {
+            var provider = cb.dataset.provider;
+            checkboxes.forEach(function(other) {
+                if (other !== cb && other.dataset.provider === provider) {
+                    other.disabled = true;
+                    other.checked = false;
+                }
+            });
+        });
+
+        // If 3 selected, disable all unchecked
+        if (count >= 3) {
+            checkboxes.forEach(function(cb) {
+                if (!cb.checked) cb.disabled = true;
+            });
+        }
+
+        // Update submit button
+        submitBtn.disabled = (count < 2);
+
+        // Update hint
+        if (count === 0) {
+            hint.textContent = 'Selecione 1 modelo por provedor (m\u00edn. 2, m\u00e1x. 3).';
+            hint.style.color = '';
+        } else if (count === 1) {
+            hint.textContent = 'Selecione mais 1 modelo de outro provedor.';
+            hint.style.color = 'var(--yellow)';
+        } else {
+            hint.textContent = count + ' modelos selecionados.' + (count < 3 ? ' Pode adicionar mais 1.' : '');
+            hint.style.color = 'var(--accent)';
+        }
+    }
+
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateState);
+    });
+    updateState();
+})();
+
 document.getElementById('profile-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = {
