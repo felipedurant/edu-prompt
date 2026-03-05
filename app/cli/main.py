@@ -349,6 +349,8 @@ def cmd_session():
     if not model_key:
         return
 
+    console.print()
+    console.print("[dim]Dica: maximize o terminal para melhor visualiza\u00e7\u00e3o dos resultados.[/dim]")
     topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico de estudo?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
@@ -576,6 +578,8 @@ def cmd_compare_versions():
     if not model_key:
         return
 
+    console.print()
+    console.print("[dim]Dica: maximize o terminal para melhor visualiza\u00e7\u00e3o dos resultados.[/dim]")
     topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
@@ -618,6 +622,15 @@ def cmd_compare_versions():
 
     # Exibir resultados lado a lado
     _display_version_comparison(result)
+
+    console.print(Panel(
+        "\U0001f4a1 Para visualizar artefatos (ASCII, mapas mentais) em tela cheia, inicie uma "
+        "sess\u00e3o de aprendizado com o mesmo aluno, modelo e t\u00f3pico \u2014 o cache "
+        "retornar\u00e1 o mesmo conte\u00fado ocupando todo o terminal.\n\n"
+        "\U0001f4c1 Para comparar os outputs completos, exporte a sess\u00e3o (op\u00e7\u00e3o 7) \u2014 "
+        "a exporta\u00e7\u00e3o inclui cada resposta na \u00edntegra.",
+        border_style="dim",
+    ))
 
     # Estatísticas de cache
     stats = result["cache_stats"]
@@ -708,25 +721,24 @@ def _display_judge_versions(eval_result: dict):
 def _display_version_comparison(data: dict):
     """Exibe comparação v1 vs v2 lado a lado."""
     for ct, info in data["results"].items():
-        console.print(f"\n{'='*60}")
+        console.print(f"\n{'=' * console.width}")
         console.print(f"[bold]{info['label']}[/bold]", justify="center")
-        console.print(f"{'='*60}")
+        console.print(f"{'=' * console.width}")
 
         panels = []
 
         # v1
         if info.get("v1"):
             v1_source = info["v1"]["source"]
-            v1_text = info["v1"]["content"][:2000]  # truncar para display
+            v1_text = info["v1"]["content"][:2000]
             indicator = "\u26a1 Cache" if v1_source == "cache" else f"\U0001f310 {info['v1'].get('elapsed', 0)}s"
             panels.append(Panel(
                 Markdown(v1_text),
                 title=f"v1 (B\u00e1sico) [{indicator}]",
                 border_style="red",
-                width=60,
             ))
         elif info.get("v1_error"):
-            panels.append(Panel(f"[red]Erro: {info['v1_error']}[/red]", title="v1", width=60))
+            panels.append(Panel(f"[red]Erro: {info['v1_error']}[/red]", title="v1"))
 
         # v2
         if info.get("v2"):
@@ -737,10 +749,9 @@ def _display_version_comparison(data: dict):
                 Markdown(v2_text),
                 title=f"v2 (Otimizado) [{indicator}]",
                 border_style="green",
-                width=60,
             ))
         elif info.get("v2_error"):
-            panels.append(Panel(f"[red]Erro: {info['v2_error']}[/red]", title="v2", width=60))
+            panels.append(Panel(f"[red]Erro: {info['v2_error']}[/red]", title="v2"))
 
         if panels:
             console.print(Columns(panels, equal=True, expand=True))
@@ -756,6 +767,8 @@ def cmd_compare_models():
     if not profile:
         return
 
+    console.print()
+    console.print("[dim]Dica: maximize o terminal para melhor visualiza\u00e7\u00e3o dos resultados.[/dim]")
     topic = Prompt.ask("\U0001f4d6 [bold cyan]Qual o t\u00f3pico?[/bold cyan]")
     if not topic.strip():
         console.print("[red]T\u00f3pico n\u00e3o pode ser vazio.[/red]")
@@ -853,6 +866,15 @@ def cmd_compare_models():
     # Exibir resultados
     _display_model_comparison(result)
 
+    console.print(Panel(
+        "\U0001f4a1 Para visualizar artefatos (ASCII, mapas mentais) em tela cheia, inicie uma "
+        "sess\u00e3o de aprendizado com o mesmo aluno, modelo e t\u00f3pico \u2014 o cache "
+        "retornar\u00e1 o mesmo conte\u00fado ocupando todo o terminal.\n\n"
+        "\U0001f4c1 Para comparar os outputs completos, exporte a sess\u00e3o (op\u00e7\u00e3o 7) \u2014 "
+        "a exporta\u00e7\u00e3o inclui cada resposta na \u00edntegra.",
+        border_style="dim",
+    ))
+
     stats = result["cache_stats"]
     console.print(
         f"\n\U0001f4ca Cache: {stats['hits']} hits / {stats['misses']} misses "
@@ -944,29 +966,27 @@ def _display_judge_apis(eval_result: dict):
 def _display_model_comparison(data: dict):
     """Exibe comparação multi-modelo."""
     for ct, info in data["results"].items():
-        console.print(f"\n{'='*60}")
+        console.print(f"\n{'=' * console.width}")
         console.print(f"[bold]{info['label']}[/bold]", justify="center")
-        console.print(f"{'='*60}")
+        console.print(f"{'=' * console.width}")
 
         panels = []
         for model_key, mdata in info["models"].items():
             label = mdata["label"]
             if mdata.get("result"):
                 source = mdata["result"]["source"]
-                text = mdata["result"]["content"][:1500]
+                text = mdata["result"]["content"][:2000]
                 indicator = "\u26a1 Cache" if source == "cache" else f"\U0001f310 {mdata['result'].get('elapsed', 0)}s"
                 panels.append(Panel(
                     Markdown(text),
                     title=f"{label} [{indicator}]",
                     border_style="blue",
-                    width=40,
                 ))
             elif mdata.get("error"):
                 panels.append(Panel(
                     f"[red]\u26a0\ufe0f {mdata['error']}[/red]",
                     title=label,
                     border_style="red",
-                    width=40,
                 ))
 
         if panels:

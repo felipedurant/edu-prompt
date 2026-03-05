@@ -63,5 +63,13 @@
     "nivel": "avancado",
     "estilo": "cinestesico",
     "contexto": "Estudante do ensino médio brasileiro"
+  },
+  {
+    "id": "manoella_26_avan_audit_0997dc",
+    "nome": "Manoella",
+    "idade": 26,
+    "nivel": "avancado",
+    "estilo": "auditivo",
+    "contexto": "Estudante de Direito"
   }
 ]
