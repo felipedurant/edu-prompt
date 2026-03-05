@@ -69,21 +69,34 @@ de forma clara e adequada ao nivel do aluno.
 **v2 (Otimizada)**:
 ```
 ABORDAGEM (Chain-of-Thought com scaffolding):
-1. Comece com uma pergunta ou situacao do cotidiano que conecte o aluno ao tema
-2. Apresente o conceito fundamental de forma acessivel
-3. Desenvolva passo a passo, construindo cada ideia sobre a anterior
-4. Inclua um checkpoint: 'Ate aqui, ficou claro que [resumo]?'
-5. Aprofunde com conexoes e implicacoes
-6. Finalize com um resumo-sintese e uma reflexao meta-cognitiva:
-   'O conceito-chave para lembrar e...'
+1. Comece com uma pergunta ou situacao concreta do cotidiano que conecte o aluno ao tema
+   -> Use algo que alguem da idade do aluno vivencia de verdade
+2. Apresente o conceito fundamental de forma acessivel, conectando com o que o aluno ja sabe
+3. Desenvolva passo a passo, construindo cada ideia sobre a anterior — use analogias concretas
+   (compare com objetos, situacoes ou processos que o aluno conhece, nunca use analogias abstratas)
+4. Inclua um checkpoint de compreensao: 'Ate aqui, ficou claro que [resumo do que foi explicado]?'
+5. Aprofunde com conexoes entre o topico e outros assuntos que o aluno estuda ou conhece
+6. Finalize com:
+   - Um resumo-sintese de 2-3 frases
+   - Uma reflexao meta-cognitiva: 'O conceito-chave para lembrar e...'
+   - Uma pergunta motivadora para despertar curiosidade sobre o proximo passo
+
+FORMATO (use Markdown):
+- Use titulos ## para cada secao
+- Use **negrito** para termos-chave
+- Inclua analogias concretas e vividas adequadas a idade
+- Se aplicavel, inclua curiosidade ou fato interessante
 ```
 
 **Decisao**: A v2 aplica **scaffolding pedagogico** -- uma progressao estruturada que guia o modelo a construir conhecimento camada por camada. Inclui:
 - **Ancora contextual**: conecta ao mundo do aluno antes de apresentar o conceito
+- **Analogias concretas obrigatorias**: nunca abstratas, sempre comparando com objetos e situacoes reais
 - **Checkpoints de compreensao**: pausas para verificar entendimento
 - **Meta-cognicao**: reflexao sobre o proprio processo de aprendizado
+- **Pergunta motivadora**: estimula curiosidade para continuar estudando
+- **Formatacao Markdown explicita**: garante saida bem estruturada na web e CLI
 
-**Resultado observado**: A v2 consistentemente produz explicacoes mais longas, mais estruturadas e com melhor fluxo logico. Os checkpoints ("Ate aqui...") criam um ritmo pedagogico que facilita a compreensao.
+**Resultado observado**: A v2 consistentemente produz explicacoes mais longas, mais estruturadas e com melhor fluxo logico. Os checkpoints ("Ate aqui...") criam um ritmo pedagogico que facilita a compreensao. As analogias concretas tornam conceitos abstratos tangiveis.
 
 ### 1.4 Output Formatting
 
@@ -96,21 +109,23 @@ Organize a resposta em paragrafos.
 
 **v2 (Otimizada)**:
 ```
-FORMATO:
-- Use secoes com titulos claros
-- Inclua analogias adequadas a idade (16 anos)
-- Destaque termos-chave em negrito
+FORMATO (use Markdown):
+- Use titulos ## para cada secao da explicacao
+- Use **negrito** para termos-chave e conceitos centrais
+- Use listas e bullet points para organizar informacao
+- Inclua analogias concretas e vividas adequadas a idade (16 anos)
 - Extensao: proporcional ao nivel (intermediario)
+- Se aplicavel, inclua curiosidade ou fato interessante
 ```
 
 **Decisao**: A v2 especifica constraints concretos (negrito para termos-chave, analogias por idade, extensao por nivel). Para cada tipo de conteudo, o formato e diferente:
 
 | Tipo | Formato v2 |
 |---|---|
-| Explicacao conceitual | Secoes, analogias, checkpoints, resumo final |
-| Exemplos praticos | Numerados, progressivos, com variacao e desafio |
-| Perguntas de reflexao | Taxonomia de Bloom, agrupadas por dificuldade |
-| Resumo visual | Mapa mental ASCII, tabela-resumo, mnemônico, conexoes |
+| Explicacao conceitual | Secoes ## Markdown, analogias concretas, checkpoints, resumo + pergunta motivadora |
+| Exemplos praticos | Numerados ##, progressivos, variacoes, "Por que importa", desafio com criterio de sucesso |
+| Perguntas de reflexao | Taxonomia de Bloom com cenarios, blockquotes para provocacoes, dicas em italico |
+| Resumo visual | Mapa mental Mermaid (web) ou ASCII com emojis (CLI), tabela-resumo, mnemonico, conexoes |
 
 ## 2. Adaptacao por Estilo de Aprendizado
 
@@ -178,7 +193,7 @@ O feedback usa formato estruturado com indicadores visuais:
 
 ## 5. LLM-as-Judge
 
-O avaliador automatico usa **Gemini 2.5 Pro** exclusivamente como juiz, avaliando conteudo gerado por outros modelos.
+O avaliador automatico usa **DeepSeek V3.2** (via OpenRouter) exclusivamente como juiz, avaliando conteudo gerado por outros modelos.
 
 ### Criterios (1-10)
 
@@ -247,11 +262,29 @@ Toda resposta mostra origem:
 - `Cache` -- resposta do cache (instantanea)
 - `API (1.2s)` -- chamada nova a API
 
-## 9. Licoes Aprendidas
+## 9. Renderizacao Markdown e Mermaid.js (Web)
+
+A interface web renderiza as respostas da IA com suporte completo a:
+
+- **Markdown**: Parsed via Marked.js, sanitizado com DOMPurify contra XSS
+- **Mermaid.js**: Diagramas mindmap renderizados nativamente no navegador
+
+### Adaptacao do output_format por interface
+
+O `PromptEngine.build_visual_summary()` recebe um parametro `output_format`:
+- `"ascii"` (CLI): instrui a LLM a gerar mapas mentais com caracteres ASCII (├──, └──, │)
+- `"mermaid"` (Web): instrui a LLM a gerar blocos ```mermaid com sintaxe mindmap valida
+
+O prompt v2 inclui exemplo de sintaxe Mermaid exato para minimizar erros de formatacao, alem de restricoes como evitar caracteres especiais nos nos.
+
+## 10. Licoes Aprendidas
 
 1. **Formato estruturado nos prompts** (listas, secoes numeradas) produz saidas mais organizadas que instrucoes em prosa
 2. **Personas calibradas por idade** fazem diferenca significativa na adequacao do conteudo
 3. **Checkpoints de compreensao** ("Ate aqui ficou claro...") criam um ritmo pedagogico natural
 4. **Taxonomia de Bloom** nas perguntas de reflexao eleva a qualidade das questoes
-5. **Temperatura 0.7** e um bom equiilbrio entre criatividade e consistencia para conteudo educacional
+5. **Temperatura 0.7** e um bom equilibrio entre criatividade e consistencia para conteudo educacional
 6. **Cache global** compartilhado entre modos e um diferencial real -- economia mensuravel
+7. **Analogias concretas** (nunca abstratas) tornam conceitos complexos tangiveis para qualquer faixa etaria
+8. **Instrucoes de formatacao Markdown explicitas** nos prompts melhoram significativamente a apresentacao na web
+9. **Exemplos de sintaxe no prompt** (como Mermaid mindmap) reduzem drasticamente erros de formatacao na saida

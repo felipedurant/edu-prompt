@@ -21,7 +21,7 @@ app/
 │   ├── session.py            # SessionManager: conversa, comandos, quiz, sliding window
 │   ├── onboarding.py         # Quiz VARK (7 perguntas) + estilos de aprendizado
 │   ├── comparison.py         # Comparação v1/v2 e multi-API (ThreadPoolExecutor)
-│   ├── evaluator.py          # LLM-as-judge (Gemini 2.5 Pro)
+│   ├── evaluator.py          # LLM-as-judge (DeepSeek V3.2 via OpenRouter)
 │   └── export.py             # Exportação JSON + Markdown
 ├── storage/
 │   ├── database.py           # SQLite: schema, queries (sessions, messages, cache, evaluations)
@@ -82,7 +82,7 @@ GeminiAdapter  GroqAdapter  OpenRouterAdapter
 ```
 
 - **Factory**: `get_adapter("gemini")` retorna adapter configurado
-- **Judge**: `get_judge_adapter()` retorna Gemini 2.5 Pro (exclusivo)
+- **Judge**: `get_judge_adapter()` retorna DeepSeek V3.2 via OpenRouter (exclusivo para avaliacao)
 - **Disponibilidade**: `list_available()` filtra por chaves no `.env`
 
 ## Prompt Engine (40% da nota)
