@@ -604,7 +604,7 @@ def cmd_compare_versions():
             total=total,
         )
 
-        def on_progress(completed, total_tasks, desc):
+        def on_progress(completed, total_tasks, desc, **kwargs):
             progress.update(task, completed=completed, description=f"\u23f3 {desc}")
 
         try:
@@ -838,7 +838,7 @@ def cmd_compare_models():
             total=total,
         )
 
-        def on_progress(completed, total_tasks, desc):
+        def on_progress(completed, total_tasks, desc, **kwargs):
             progress.update(task, completed=completed, description=f"\u23f3 {desc}")
 
         try:
