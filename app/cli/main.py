@@ -754,7 +754,11 @@ def _display_version_comparison(data: dict):
             panels.append(Panel(f"[red]Erro: {info['v2_error']}[/red]", title="v2"))
 
         if panels:
-            console.print(Columns(panels, equal=True, expand=True))
+            grid = Table.grid(expand=True)
+            for _ in panels:
+                grid.add_column(ratio=1)
+            grid.add_row(*panels)
+            console.print(grid)
 
 
 # ─── Opção 5: Comparar Modelos ─────────────────────────
@@ -990,7 +994,11 @@ def _display_model_comparison(data: dict):
                 ))
 
         if panels:
-            console.print(Columns(panels, equal=True, expand=True))
+            grid = Table.grid(expand=True)
+            for _ in panels:
+                grid.add_column(ratio=1)
+            grid.add_row(*panels)
+            console.print(grid)
 
 
 # ─── Opção 6: Histórico ─────────────────────────────────
