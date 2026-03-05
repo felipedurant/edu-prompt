@@ -55,5 +55,13 @@
       "visual",
       "auditivo"
     ]
+  },
+  {
+    "id": "diana_15_avan_cines_3d6c47",
+    "nome": "Diana",
+    "idade": 15,
+    "nivel": "avancado",
+    "estilo": "cinestesico",
+    "contexto": "Estudante do ensino médio brasileiro"
   }
 ]

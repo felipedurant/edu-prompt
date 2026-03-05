@@ -975,6 +975,14 @@ def _display_model_comparison(data: dict):
 
 # ─── Opção 6: Histórico ─────────────────────────────────
 
+def _model_label(model_id: str) -> str:
+    """Retorna o label legível de um model_id consultando MODEL_REGISTRY."""
+    for entry in MODEL_REGISTRY.values():
+        if entry["model_id"] == model_id:
+            return entry["label"]
+    return model_id
+
+
 def cmd_history():
     """Exibe histórico de sessões."""
     console.print(Panel("\U0001f4dc Hist\u00f3rico de Sess\u00f5es", border_style="cyan"))
@@ -1007,7 +1015,7 @@ def cmd_history():
             s.get("started_at", "")[:16],
             s.get("profile_name", s["profile_id"][:12]),
             (s.get("topic", "")[:20] + "...") if len(s.get("topic", "")) > 20 else s.get("topic", ""),
-            s["provider"],
+            _model_label(s["model"]),
             mode_labels.get(s["mode"], s["mode"]),
         )
 
@@ -1028,7 +1036,7 @@ def cmd_history():
 
 
 def _show_session_detail(session_id: str):
-    """Exibe detalhes de uma sessão."""
+    """Exibe detalhes de uma sessão com opções interativas."""
     db = get_db()
     messages = db.get_messages(session_id)
 
@@ -1036,18 +1044,37 @@ def _show_session_detail(session_id: str):
         console.print("[yellow]Sess\u00e3o sem mensagens.[/yellow]")
         return
 
-    for msg in messages:
-        ct = msg.get("content_type", "free_chat")
-        role_style = "bold cyan" if msg["role"] == "user" else "bold green"
-        role_label = "Aluno" if msg["role"] == "user" else "Professor"
+    def _print_messages(truncate: bool = True):
+        for msg in messages:
+            ct = msg.get("content_type", "free_chat")
+            role_style = "bold cyan" if msg["role"] == "user" else "bold green"
+            role_label = "Aluno" if msg["role"] == "user" else "Professor"
 
-        version_tag = f" (v{msg['prompt_version']})" if msg.get("prompt_version") else ""
-        source_tag = f" [{msg['source']}]" if msg.get("source") else ""
+            version_tag = f" (v{msg['prompt_version']})" if msg.get("prompt_version") else ""
+            source_tag = f" [{msg['source']}]" if msg.get("source") else ""
 
-        console.print(f"\n[{role_style}]{role_label}[/{role_style}]{version_tag}{source_tag} [{ct}]:")
-        console.print(Markdown(msg["content"][:1000]))
+            console.print(f"\n[{role_style}]{role_label}[/{role_style}]{version_tag}{source_tag} [{ct}]:")
+            content = msg["content"][:1000] if truncate else msg["content"]
+            console.print(Markdown(content))
 
-    Prompt.ask("\n[dim]Enter para voltar[/dim]", default="")
+    _print_messages(truncate=True)
+
+    console.print("\n  [1] Exportar esta sess\u00e3o")
+    console.print("  [2] Ver conversa completa")
+    choice = Prompt.ask("[dim]Escolha uma op\u00e7\u00e3o ou Enter para voltar[/dim]", default="")
+
+    if choice.strip() == "1":
+        console.print("\nFormato: [1] JSON  [2] Markdown  [3] Ambos")
+        fmt = Prompt.ask("Formato", default="3")
+        _export_session(session_id, fmt, db)
+    elif choice.strip() == "2":
+        _print_messages(truncate=False)
+        console.print("\n  [1] Exportar esta sess\u00e3o")
+        choice2 = Prompt.ask("[dim]Escolha uma op\u00e7\u00e3o ou Enter para voltar[/dim]", default="")
+        if choice2.strip() == "1":
+            console.print("\nFormato: [1] JSON  [2] Markdown  [3] Ambos")
+            fmt = Prompt.ask("Formato", default="3")
+            _export_session(session_id, fmt, db)
 
 
 # ─── Opção 7: Exportar ──────────────────────────────────
@@ -1073,9 +1100,33 @@ def cmd_export():
             console.print("[yellow]Nenhuma sess\u00e3o registrada.[/yellow]")
             return
 
-        # Mostra lista e pede seleção
+        # Mostra lista formatada
+        mode_labels = {
+            "conversation": "Conversa",
+            "compare_versions": "v1 vs v2",
+            "compare_models": "Multi-Modelo",
+            "compare_apis": "Multi-Modelo",
+        }
+
+        table = Table()
+        table.add_column("#", style="dim", width=4)
+        table.add_column("Data")
+        table.add_column("Perfil")
+        table.add_column("T\u00f3pico")
+        table.add_column("Modelo")
+        table.add_column("Modo")
+
         for i, s in enumerate(sessions):
-            console.print(f"  [{i+1}] {s.get('topic', 'Sem tópico')} ({s['mode']}, {s.get('started_at', '')[:16]})")
+            table.add_row(
+                str(i + 1),
+                s.get("started_at", "")[:16],
+                s.get("profile_name", s["profile_id"][:12]),
+                (s.get("topic", "")[:20] + "...") if len(s.get("topic", "")) > 20 else s.get("topic", ""),
+                _model_label(s["model"]),
+                mode_labels.get(s["mode"], s["mode"]),
+            )
+
+        console.print(table)
 
         idx_str = Prompt.ask("Selecione", default="1")
         try:
