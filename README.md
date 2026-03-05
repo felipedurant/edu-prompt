@@ -1,7 +1,7 @@
 # [EduPrompt Platform](https://edu-prompt.onrender.com/)
 
 
-Plataforma educacional com IA personalizada que gera conteudo adaptado ao perfil de cada aluno, utilizando tecnicas avancadas de engenharia de prompt.
+Plataforma educacional com IA personalizada que gera conteudo adaptado ao perfil de cada aluno, utilizando tecnicas avancadas de engenharia de prompt. Acesse nosso site, teste no seu CLI e dê seu feedback!
 
 ## Visao Geral
 
